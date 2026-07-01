@@ -1,0 +1,13 @@
+# This scaffold ships only generic templates. Never commit personal/machine state:
+.credentials.json
+**/.credentials.json
+**/.env
+*.key
+*.pem
+
+# Transient
+*.log
+Thumbs.db
+desktop.ini
+~$*
+.DS_Store
