@@ -13,6 +13,19 @@ Non-negotiable, across every task (adapted from Addy Osmani's `agent-skills`):
 - **Manage confusion actively.** On an inconsistency or conflicting signal, **stop**,
   name the confusion, present the trade-off or ask, and wait — don't guess.
 
+## Cross-agent handoff — `PLAN.md`
+
+If you tag-team a project with **Codex** (e.g. the user switches to Codex when Claude hits
+its usage limit, then back), use a shared `PLAN.md` at the repo root so the handoff is
+seamless. Codex's mirror lives in `~/.codex/AGENTS.md` (deploy `templates/codex-AGENTS.md`).
+
+- For substantive multi-step work, **read `PLAN.md` first** if present and resume from it;
+  else create one: **Goal · Done · Next · Decisions/gotchas · Checkpoint**.
+- Keep **Done / Next** current — it's the context bridge for whoever picks up.
+- **Checkpoint with git** at milestones and before a handoff (small labeled commit; record
+  its hash on the `## Checkpoint` line so the next agent can `git diff <hash>`). Don't push
+  or open PRs without the user's ok.
+
 ## Skill posture — the autonomous skillchain
 
 - **Superpowers is the methodology backbone.** Its `using-superpowers` skill is injected

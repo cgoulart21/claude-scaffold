@@ -58,6 +58,11 @@ Copy `templates/global-CLAUDE.md` to `~/.claude/CLAUDE.md` (back up any existing
 first). Adapt the maintenance section to the user's chosen trigger model (Phase 5). Remove
 the parts the user didn't opt into.
 
+**Cross-agent handoff (if the user also uses Codex):** deploy `templates/codex-AGENTS.md`
+to `~/.codex/AGENTS.md` so Claude and Codex share the same `PLAN.md` handoff convention.
+Drop `templates/PLAN.md` into a project (or let the agents create it) when substantive work
+starts — it's the shared live-state doc that makes the Claude⇄Codex switch seamless.
+
 ## Phase 4 — Knowledge vault / LLM-wiki (if B)
 
 1. Create the vault folder at the user's chosen location.
