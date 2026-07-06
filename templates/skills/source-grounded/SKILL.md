@@ -1,6 +1,6 @@
 ---
 name: source-grounded
-description: Ground framework/library/hardware code decisions in version-specific official docs and datasheets instead of memory. Use when writing or reviewing framework/library/chip-specific code where version-correctness matters — APIs, peripheral/register config, build flags, pinouts, timing — and getting it from memory risks stale or deprecated patterns. Detect the exact versions from the project manifest, fetch the matching doc/datasheet page, follow it, and cite. Skip for pure logic, renames, or when the user asks for speed over verification.
+description: Ground framework/library/hardware code decisions in version-specific official docs and datasheets instead of memory. Detect the exact versions from the project manifest, fetch the matching doc/datasheet page, follow it, and cite. TRIGGER — writing or reviewing framework/library/chip-specific code where version-correctness matters (APIs, peripheral/register config, build flags, pinouts, timing) and getting it from memory risks stale or deprecated patterns. SKIP — pure logic, renames, formatting, version-agnostic code, or when the user explicitly asks for speed over verification.
 ---
 
 # Source-Grounded

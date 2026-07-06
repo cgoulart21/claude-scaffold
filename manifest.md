@@ -35,6 +35,14 @@ Claude session's terminal** if your app is MSIX-packaged (see SCAFFOLD Phase 5).
 `tdd`, `diagnosing-bugs`, `writing-great-skills`, `grill-me` —
 `npx skills remove --skill <name> -g -y`. Keeping `diagnose` + `grilling` is a good default.
 
+**Customized skills override upstream:** `diagnose` (upstream: mattpocock/skills) is
+customized in this scaffold — after installing the third-party skills, deploy
+`templates/skills/diagnose/SKILL.md` OVER the upstream copy. `design-smells` and
+`source-grounded` are authored here and deploy from `templates/skills/` as usual.
+All three carry the description gating convention: explicit `TRIGGER —` / `SKIP —`
+clauses (see the cross-cutting principle in `~/.claude/skill-observations/`); never
+use colon-space inside an unquoted YAML scalar.
+
 The `PromptScript does not support global skill installation` warning is harmless — the
 `SKILL.md` still copies.
 

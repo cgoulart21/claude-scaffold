@@ -1,6 +1,13 @@
 ---
 name: design-smells
-description: Fast structural design-smell pass for reviewing a diff/PR or deciding whether a refactor is worth it — catches conditionals bolted onto unrelated flows, repeated same-shape branches, refactors that relocate rather than reduce complexity, feature logic leaking into shared modules, and gratuitous type escapes. Use when reviewing changes, when code "works but feels tangled," or before accepting a refactor. Complements `review` (standards + spec verdict) and `codebase-design` (deep-module vocabulary) with a quick smell lens; not a full review on its own.
+description: >
+  Fast structural design-smell pass for reviewing a diff/PR or deciding whether a refactor
+  is worth it — catches conditionals bolted onto unrelated flows, repeated same-shape
+  branches, refactors that relocate rather than reduce complexity, feature logic leaking
+  into shared modules, and gratuitous type escapes. TRIGGER — reviewing changes; code
+  "works but feels tangled"; before accepting a refactor. SKIP — full correctness/spec
+  review (this is a smell lens, not a full review); greenfield code with no refactor
+  decision pending; pure style nits.
 ---
 
 # Design Smells
