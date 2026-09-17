@@ -17,7 +17,6 @@ This is the first thing to understand, because the layout encodes it:
 | `stack/` | **fast** | A dated inventory of tools. Carries a date stamp and a warning |
 | `automation/` | slowly | Hooks, maintenance scripts, trigger selection, verification patterns |
 | `vault/` | slowly | An optional knowledge wiki - schema only, ships empty |
-| `docs/` | slowly | The explanation: why any of this exists and how to lay out a machine |
 
 An earlier version of this repository had no such split. Every file looked equally current,
 so nothing could say *this one does not need updating* - and it spent months confidently

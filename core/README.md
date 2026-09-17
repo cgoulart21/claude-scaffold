@@ -24,7 +24,6 @@ So durability is now structural. A file's folder tells you how fast it rots:
 | `core/` | never | Method and schemas. Timeless by construction |
 | `stack/` | fast | A dated inventory of tools. Carries a date stamp and a warning |
 | `vault/`, `automation/` | slowly | Shapes and patterns, with concrete values as placeholders |
-| `docs/` | slowly | The explanation. Cites `stack/` as a dated example, never as truth |
 
 ## The routing rule
 
