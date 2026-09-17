@@ -90,6 +90,28 @@ $review = Get-Text 'review\README.md'
 Assert-True 'review map exists' ($review.Length -gt 0)
 Assert-True 'CI is named as the authoritative gate' ($review -match '(?i)authoritative')
 
+Write-Output 'Group 5 - the durability contract is written down'
+
+$coreReadme = Get-Text 'README.md'
+Assert-True 'core README exists' ($coreReadme.Length -gt 0)
+Assert-True 'core is declared timeless'          ($coreReadme -match '(?i)timeless|does not expire')
+Assert-True 'the routing rule is stated'         ($coreReadme -match '(?i)routing|where does a change go')
+Assert-True 'inventory is routed away from core' ($coreReadme -match '(?i)inventory')
+
+# A repo-relative path that resolves to nothing is the classic thing that ships. This
+# catches it while the branch is still local, which is the only cheap moment.
+$dangling = @()
+foreach ($doc in @(Get-ChildItem -LiteralPath $CoreRoot -Recurse -File -Filter '*.md')) {
+    $text = Get-Content -LiteralPath $doc.FullName -Raw -Encoding UTF8
+    foreach ($hit in [regex]::Matches($text, 'core/([A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*)')) {
+        $relative = $hit.Groups[1].Value -replace '/', '\'
+        if (-not (Test-Path -LiteralPath (Join-Path $CoreRoot $relative))) {
+            $dangling += "$($doc.Name) -> $($hit.Value)"
+        }
+    }
+}
+Assert-True "no dangling core/ references [$($dangling -join '; ')]" ($dangling.Count -eq 0)
+
 Write-Output ''
 Write-Output "PASS $script:Pass  FAIL $script:Fail"
 if ($script:Fail -gt 0) { exit 1 }

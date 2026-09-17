@@ -21,6 +21,18 @@ jobs:
           .\tools\Test-CheckNoPersonalData.ps1
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
+      - name: Core template assertions
+        shell: powershell
+        run: |
+          .\tools\Test-CoreTemplates.ps1
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Memory junction behaviour
+        shell: powershell
+        run: |
+          .\tools\Test-SetMemoryJunctions.ps1
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
       - name: Scan the tree
         shell: powershell
         run: |

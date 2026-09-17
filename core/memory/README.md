@@ -2,7 +2,8 @@
 
 Memory here means **tool gotchas and project context**: the things you would get wrong
 again without a note. Method and verification discipline do not live here - they live in
-`core/lessons/LESSONS.md`. Keeping the two apart is what keeps either one readable.
+the cross-cutting lessons file, `LESSONS.md`. Keeping the two apart is what keeps either
+one readable.
 
 ## The model
 
