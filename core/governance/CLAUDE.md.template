@@ -1,0 +1,88 @@
+# Global Operating Instructions
+
+A project's own `CLAUDE.md` / `AGENTS.md` overrides this file.
+
+> **Template.** Replace every `<PLACEHOLDER>` with a real path on your machine before
+> deploying this to `$env:USERPROFILE/.claude/CLAUDE.md`. Delete the sections you did not
+> opt into. Keep it short: this file is read at the start of every session, and a file
+> nobody finishes reading is a file nobody follows. The version this was distilled from
+> went from 38 rules to 8 in a single audit, and got *more* effective.
+
+## Verification
+
+- At least one check must touch an **independent** source of truth: a real export, a
+  datasheet, a measurement. An artifact validated only against references built from the
+  same assumptions keeps passing for exactly as long as the shared assumption stays wrong.
+- Before non-trivial work, state **"Assumptions: 1... 2..."** and then proceed.
+- When signals contradict each other, **name the contradiction** instead of silently
+  picking a side.
+- **An indirect signal is not the fact.** A loaded catalogue is not a used skill - a login
+  status is not a valid token - absent from the host's PATH is not absent from the
+  application's sandbox - a local working tree is not the remote - a passing suite is not
+  a satisfied contract - internal consistency is not a correct binding. Say which surface
+  you actually tested.
+- When a check overturns something you already wrote, correct **every published surface**
+  before starting the next task; an erratum at the top is enough. Between the finding and
+  the fix, each uncorrected surface misinforms on its own.
+- That rule only reaches surfaces someone remembers exist. So: when you publish a page,
+  document or export derived from a repository file, **record its URL in memory in the
+  same turn**, together with the update convention (same URL, erratum at the top, or body
+  rewritten). A page nobody has a pointer to will keep serving the old numbers for weeks.
+
+## Cross-project knowledge - read before non-trivial work
+
+- `<MEMORY-PATH>/MEMORY.md` - the index. One line per tool gotcha: the things you would
+  get wrong again without it.
+- `<LESSONS-PATH>/LESSONS.md` - error families that different projects learned separately,
+  each one paying the full price. Method and verification discipline live here; tool
+  gotchas do not.
+
+Keep the two apart. The moment method starts leaking into the gotcha index, both stop
+being readable.
+
+## Handoff - `PLAN.md`
+
+- Read it first in multi-step work. Maintain `Done` / `Next` and the `## Checkpoint`:
+  `Status: active|paused|complete`, `Updated: YYYY-MM-DD`, `Base: <git SHA>`.
+- One file, ephemeral, tool-neutral: replace it in place, and move durable decisions out
+  to an ADR or a document in the repository.
+- An `active` plan older than 14 days, or whose `Base` is not an ancestor of `HEAD`, is
+  stale. A git checkpoint is optional and needs explicit human approval.
+
+## Commits and review
+
+- Scale review depth to risk: mechanical, skip it; one module, medium; multi-file, or
+  anything touching auth, money, schema, concurrency or security, high. Fix, re-review
+  once, then commit.
+- Authorising a workflow authorises neither each individual mutation nor the **disclosure
+  of its inputs**. Commit, push, opening a PR, and sending private code or diffs to an
+  external service each need named approval, even inside a disposable fixture.
+- One surface per purpose: plan review before code - branch or PR review against standards
+  and spec - an independent heavyweight reviewer before merge - security review for auth,
+  crypto, input handling and secrets.
+- **CI is the authoritative gate.** Local review complements it and never replaces it.
+
+## Maintenance
+
+- On a dated reminder, run the routine it names - unless the user is mid-task - and write
+  today's date into the marker that routine names.
+
+## Workflows and subagents
+
+State your own default here, and the explicit exception that lifts it. Whatever you
+choose, write down which one it is: an unstated default gets applied inconsistently and
+then argued about.
+
+## Corrections
+
+- Record every correction from the user **and every technical gotcha** in
+  `<CORRECTIONS-PATH>/log.md` - one line: date, what I did, what they wanted. Or, for a
+  gotcha: date, what I assumed, what was true.
+- It becomes a rule only on the **second occurrence**. A correction that repeats becomes a
+  rule in this file; a gotcha that reappears in a *different* project becomes a family in
+  `LESSONS.md`. There is no stage between noticing and applying - that gap is exactly
+  where the previous pipeline died, with 99 observations captured and 1 applied.
+- After a **programmatic append** to an append-only file, sweep for the control bytes
+  `0x00`, `0x07`, `0x08`, `0x0B` and `0x0C` before you finish. In a non-raw string
+  literal, `\a \b \f \v` are *valid* escape sequences: they raise no warning and corrupt
+  silently. Repair only the offending byte; never rewrite another session's entry.
