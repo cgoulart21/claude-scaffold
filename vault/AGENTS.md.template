@@ -1,0 +1,142 @@
+# Knowledge vault - project instructions
+
+A wiki maintained by an agent. The human supplies sources, research questions, decisions and
+the content of their own notes. The agent maintains the structure and the operational
+scaffolding around them.
+
+> **Template.** Adapt the paths and drop the sections you will not use. The vault ships
+> **empty**: what is here is a schema, not anybody's knowledge.
+
+## Project Map
+
+- `raw/` - immutable source material and assets. **Read-only.**
+- `wiki/sources/` - one structured summary page per ingested source.
+- `wiki/entities/` - people, organisations, projects, tools, components.
+- `wiki/concepts/` - ideas, methods, frameworks, technical patterns.
+- `wiki/queries/` - syntheses, answers, comparisons, red-team reports.
+- `wiki/notes/` - the human's own decisions, observations and bench notes.
+  **Do not edit the body of these.**
+- `wiki/meta/index.md` - the master catalogue. Update it on ingest, synthesis, lint, or any
+  new page.
+- `wiki/meta/log.md` - append-only operations log.
+
+## Operating Defaults
+
+- Never invent facts. Mark uncertainty with `> **[UNCERTAIN]**`.
+- Never silently overwrite reasoning. A significant reinterpretation earns a `## History`
+  entry on the page it changes.
+
+## Wiki Page Format
+
+Every page opens with YAML frontmatter:
+
+```yaml
+---
+title: "Page Title"
+type: entity | concept | source | query | note | meta
+kind: decision | observation | hypothesis | lab-note
+tags: [tag1, tag2]
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+sources: [source-slug-1, source-slug-2]
+archived: true | false
+---
+```
+
+- Omit `kind` except on notes; omit `sources` on notes and meta pages.
+- Use wikilinks: `[[PageName]]`.
+- Cite files from `raw/` inline when summarising source material.
+- Mark contradictions with `> **[CONTRADICTION with [[OtherPage]]]**`.
+- Prefer updating an existing entity or concept page to creating a near-duplicate.
+
+## Core Wiki Operations
+
+- **Quick ingest** - a short clipping. Create `wiki/sources/<slug>.md`, update the index,
+  append to the log. Do not propagate to entities or concepts.
+- **Full ingest** - a substantial paper, article or transcript. Read it completely, discuss
+  three to five takeaways with the human, then create or update source, entities, concepts,
+  index and log.
+- **Deep ingest** - a heavy transcript or a sub-architecture that was never written down.
+  Read the raw material in blocks and rewrite it as an inventory: overview, decisions,
+  parameters, bugs and fixes, artifacts, open threads. Reconcile against the graph.
+- **Query** - answer from existing pages. Read the index, then the relevant pages, cite
+  `[[PageName]]`, and offer to archive the answer under `wiki/queries/`.
+- **Lint** - report orphans, stubs, contradictions, stale claims, missing pages and links,
+  promotion candidates and archiving candidates.
+- **Synthesize** - create a query page with a thesis, its evidence and the open questions;
+  update index and log.
+- **Note** - do not edit the body. Add it to the index and log, and cross-link it from agent
+  pages where that helps.
+- **Challenge** - red-team a non-trivial claim against the vault. Extract the claim first,
+  then hunt for counter-evidence, cite pages, and offer to save the report.
+- **Connect** - link two domains through links, tags and entities, and produce concrete
+  transfer opportunities.
+- **Emerge** - surface unnamed patterns in recent material or in a given scope.
+- **Harvest** - collect durable learning from a sibling code repository.
+
+### About Harvest, which is the one people leave out
+
+Every other operation starts from `raw/`. That means nothing ever looks at the repositories
+where the work actually happens - and in one practice the vault went twenty-six days without
+receiving anything while six projects were producing. Harvest closes that.
+
+Read, in order: the project's live plan file, its instruction file, then its architecture
+decision records. Promote each durable finding into `concepts/` or `entities/` - updating an
+existing page rather than creating a duplicate - and cross-link it from the relevant
+synthesis page. **Do not copy prose from the repository:** rewrite it as a claim with a
+source.
+
+**Provenance is the part that makes it reproducible.** Create
+`wiki/sources/YYYY-MM-DD-harvest-<project>.md` recording the repository, **the commit you
+read**, why you harvested and which files you read. Without it there is nothing to put in
+the `sources:` of the promoted pages, and a claim about a repository with no commit cited is
+indistinguishable from memory.
+
+**What does NOT come here:** tool gotchas and method discipline. Those belong in your memory
+index and your lessons file. The vault is research; that is operations. Mixing them makes
+both unreadable.
+
+## Obsidian Conventions
+
+- Workspace and UI state are not content.
+- Do not edit the body of the human's notes. Suggest changes in conversation.
+- A page with no outbound link is usually a graph failure.
+- Archived pages stay searchable but are not primary lint targets.
+
+## Status, Index And Log
+
+- Do **not** read the index and log at the start of every session. Read them when status is
+  asked for, when the operation requires it, or when the request implies the wiki's current
+  state matters.
+- On an explicit status request: page counts by type, the last logged operation, and one
+  suggested next action.
+- `wiki/meta/log.md` is append-only. Entries begin with `## [YYYY-MM-DD] operation | Title`.
+
+## Autoresearch Mode
+
+If you add an autonomous expansion loop, treat it as a **supervised, validation-gated**
+workflow rather than a default: one target per pass, validate every changed page, and never
+commit its output without explicit approval. An expansion loop that writes unattended fills
+a vault with plausible text nobody sourced.
+
+## Academic Documents
+
+Separate evidence from interpretation. Flag methodological risks, missing controls, stale
+sources and unsupported causality.
+
+## Review Routing
+
+One surface per purpose - see `core/review/` for the full map. **CI is the authoritative
+gate** for anything published; local review complements it and never replaces it.
+
+## Essential Checks
+
+List the commands that validate a page, the ingest wiring and the overall health of the
+wiki, and say **which platforms each one runs on**. A check written for one shell will not
+run on another, and "it did not run" must be reported as such rather than passed over.
+
+## Definition Of Done
+
+- The relevant checks ran, or it is stated why they could not.
+- Wiki changes are indexed and logged.
+- The plan file is updated for substantive multi-step work.

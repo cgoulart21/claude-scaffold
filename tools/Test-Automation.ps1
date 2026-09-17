@@ -198,6 +198,74 @@ $readme = Get-Text 'hooks\README.md'
 Assert-True 'hooks README exists' ($readme.Length -gt 0)
 Assert-True 'the README shows the settings wiring' ($readme -match '(?i)PreToolUse' -and $readme -match '(?i)SessionStart')
 
+Write-Output 'Group 5 - maintenance, triggers and verification'
+
+$backup = Get-Text 'maintenance\backup-config.ps1'
+Assert-True 'backup script exists' ($backup.Length -gt 0)
+# The whole point of this script is that it does not guess the failure mode.
+foreach ($mode in @('DIVERGENCE', 'NETWORK', 'AUTHENTICATION', 'NOT CLASSIFIED')) {
+    Assert-True "push failure mode classified: $mode" ($backup -match [regex]::Escape($mode))
+}
+
+$updates = Get-Text 'maintenance\check-updates.ps1'
+Assert-True 'update check exists' ($updates.Length -gt 0)
+Assert-True 'the update check applies nothing' ($updates -match '(?i)nothing (was |is )?applied|read-only')
+
+$triggers = Get-Text 'triggers.md'
+Assert-True 'triggers doc exists' ($triggers.Length -gt 0)
+foreach ($path in @('Task Scheduler', 'session-driven', 'scheduled-task')) {
+    Assert-True "trigger path documented: $path" ($triggers -match [regex]::Escape($path))
+}
+# A path without a way to tell whether it applies to you is a path you cannot choose.
+Assert-True 'each trigger path carries a detection test' (@([regex]::Matches($triggers, '(?i)how to tell')).Count -ge 3)
+
+$verification = Get-Text 'verification\README.md'
+Assert-True 'verification README exists' ($verification.Length -gt 0)
+Assert-True 'the exit-code contract is stated'   ($verification -match '(?i)exit')
+Assert-True 'snapshot-first is explained'        ($verification -match '(?i)snapshot')
+
+foreach ($name in @('Invoke-Gitleaks.ps1', 'Assert-Baseline.ps1')) {
+    $path = Join-Path $AutomationRoot "verification\$name"
+    if (Test-Path -LiteralPath $path -PathType Leaf) {
+        $nonAscii = @([IO.File]::ReadAllBytes($path) | Where-Object { $_ -gt 127 }).Count
+        Assert-True "ascii-only: $name" ($nonAscii -eq 0)
+        $parseErrors = $null
+        [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$null, [ref]$parseErrors) | Out-Null
+        Assert-True "parses: $name" ($null -eq $parseErrors -or $parseErrors.Count -eq 0)
+    }
+    else {
+        Assert-True "ascii-only: $name (file missing)" $false
+        Assert-True "parses: $name (file missing)"     $false
+    }
+}
+
+Write-Output 'Group 6 - the vault schema ships empty'
+
+$vaultRoot = Join-Path (Split-Path -Parent $AutomationRoot) 'vault'
+function Get-VaultText {
+    param([string]$Relative)
+    $path = Join-Path $vaultRoot $Relative
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return '' }
+    return (Get-Content -LiteralPath $path -Raw -Encoding UTF8)
+}
+
+$agents = Get-VaultText 'AGENTS.md.template'
+Assert-True 'vault template exists' ($agents.Length -gt 0)
+foreach ($section in @('Project Map', 'Wiki Page Format', 'Core Wiki Operations', 'Definition Of Done')) {
+    Assert-True "vault section present: $section" ($agents -match [regex]::Escape($section))
+}
+foreach ($operation in @('ingest', 'Query', 'Lint', 'Synthesize', 'Challenge', 'Connect', 'Emerge')) {
+    Assert-True "wiki operation documented: $operation" ($agents -match [regex]::Escape($operation))
+}
+
+$structure = Get-VaultText 'structure.md'
+Assert-True 'vault structure doc exists' ($structure.Length -gt 0)
+Assert-True 'the cloud-folder warning is present' ($structure -match '(?i)separate-git-dir')
+
+$vaultReadme = Get-VaultText 'README.md'
+Assert-True 'vault README exists' ($vaultReadme.Length -gt 0)
+Assert-True 'the vault is distinguished from memory' ($vaultReadme -match '(?i)memory')
+
 Write-Output ''
 Write-Output "PASS $script:Pass  FAIL $script:Fail"
 if ($script:Fail -gt 0) { exit 1 }

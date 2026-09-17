@@ -1,0 +1,76 @@
+<#
+  Assert-Baseline.ps1
+
+  A starting point for a baseline gate: a script that asserts the invariants you
+  decided on, and fails loudly when your configuration drifts away from them.
+
+  This ships with three example assertions. They are examples, not a suite - the
+  assertions worth having are the ones that encode YOUR decisions, and nobody can
+  write those for you. Replace them.
+
+  Exit codes: 0 all assertions passed, 1 at least one failed, 2 could not run.
+
+  ASCII-only and dependency-free for Windows PowerShell 5.1.
+#>
+[CmdletBinding()]
+param(
+    [string]$SettingsPath
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+if ([string]::IsNullOrEmpty($SettingsPath)) {
+    $SettingsPath = Join-Path $env:USERPROFILE '.claude\settings.json'
+}
+
+$script:Pass = 0
+$script:Fail = 0
+
+function Assert-True {
+    param([string]$Name, [bool]$Condition)
+    if ($Condition) { $script:Pass++; Write-Output "  PASS  $Name" }
+    else            { $script:Fail++; Write-Output "  FAIL  $Name" }
+}
+
+if (-not (Test-Path -LiteralPath $SettingsPath -PathType Leaf)) {
+    Write-Output "ERROR settings file not found: $SettingsPath"
+    exit 2
+}
+
+try {
+    # utf8-sig on purpose: a byte order mark makes a JSON parse fail, and the failure
+    # arrives shaped like "your settings are invalid" rather than "I could not read
+    # this file". Read with the API that consumes the mark.
+    $raw = Get-Content -LiteralPath $SettingsPath -Raw -Encoding UTF8
+    $settings = $raw.Substring($raw.IndexOf('{')) | ConvertFrom-Json
+}
+catch {
+    Write-Output "ERROR could not parse $SettingsPath"
+    exit 2
+}
+
+Write-Output "Baseline assertions against $SettingsPath"
+
+# --- Example 1: a deny rule you never want to lose -------------------------
+$deny = @()
+if ($settings.PSObject.Properties.Name -contains 'permissions' -and
+    $settings.permissions.PSObject.Properties.Name -contains 'deny') {
+    $deny = @($settings.permissions.deny)
+}
+Assert-True 'environment files are denied' (@($deny | Where-Object { $_ -match '\.env' }).Count -gt 0)
+Assert-True 'private keys are denied'      (@($deny | Where-Object { $_ -match 'ssh' }).Count -gt 0)
+
+# --- Example 2: the hooks you rely on are actually wired -------------------
+# A hook present on disk is not a hook that fires. This is the assertion that
+# catches the gap between "I wrote a guardrail" and "the guardrail is installed".
+$wired = ''
+if ($settings.PSObject.Properties.Name -contains 'hooks') {
+    $wired = ($settings.hooks | ConvertTo-Json -Depth 10 -Compress)
+}
+Assert-True 'a PreToolUse hook is wired' ($wired -match 'PreToolUse')
+
+Write-Output ''
+Write-Output "PASS $script:Pass  FAIL $script:Fail"
+if ($script:Fail -gt 0) { exit 1 }
+exit 0
