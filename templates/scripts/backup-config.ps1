@@ -9,7 +9,7 @@
   `sync.ps1` there that copies them in, and point $repo below at it.
 #>
 $ErrorActionPreference = 'Continue'
-$repo = '<PATH-TO-YOUR-PRIVATE-CONFIG-REPO>'   # e.g. C:\your\path\claude-setup
+$repo = '<PATH-TO-YOUR-PRIVATE-CONFIG-REPO>'   # e.g. C:\Path\To\claude-setup
 
 if (-not (Test-Path (Join-Path $repo '.git'))) {
     Write-Output "Backup: claude-setup repo nao encontrado em $repo - pulando."
