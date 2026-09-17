@@ -33,6 +33,12 @@ jobs:
           .\tools\Test-SetMemoryJunctions.ps1
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
+      - name: Hook behaviour
+        shell: powershell
+        run: |
+          .\tools\Test-Automation.ps1
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
       - name: Scan the tree
         shell: powershell
         run: |
