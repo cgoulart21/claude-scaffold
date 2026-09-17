@@ -58,6 +58,20 @@ foreach ($rule in @('independent', 'Assumptions:', 'contradiction', 'published s
     Assert-True "rule survives translation: $rule" ($gov -match [regex]::Escape($rule))
 }
 
+Write-Output 'Group 2 - the ten families and the growth rule'
+
+$lessons = Get-Text 'lessons\LESSONS.md'
+Assert-True 'lessons file exists' ($lessons.Length -gt 0)
+
+$families = @([regex]::Matches($lessons, '(?m)^##\s+\d+\.\s'))
+Assert-True 'exactly ten families' ($families.Count -eq 10)
+
+$applies = @([regex]::Matches($lessons, '(?m)^\*\*Apply:\*\*'))
+Assert-True 'every family carries an Apply line' ($applies.Count -eq 10)
+
+Assert-True 'second-occurrence rule is stated' ($lessons -match '(?i)second occurrence')
+Assert-True 'seeds are labelled as borrowed'   ($lessons -match '(?i)borrowed|seeds|not your scars')
+
 Write-Output 'Group 3 - memory subsystem'
 
 $memReadme = Get-Text 'memory\README.md'

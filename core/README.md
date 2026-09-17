@@ -45,14 +45,17 @@ were replaced by a competitor. If yes, it is method.
 | Subsystem | What it gives you |
 |---|---|
 | `governance/` | The global instruction file: eight rules, short enough to actually be read |
+| `lessons/` | Ten cross-cutting error families, with the rule that grows them |
 | `memory/` | One physical memory folder behind per-directory junctions, plus the file schema |
 | `corrections/` | The append-only counter, and the second-occurrence promotion rule |
 | `handoff/` | `PLAN.md` and its checkpoint convention, shared across agents |
 | `review/` | One review surface per purpose, and why CI is the authoritative one |
 
-A sixth, `lessons/`, holds the cross-cutting error families. It is authored separately
-because anonymising real incidents is slow work and rushing it is how identifying details
-survive into a public repository.
+`lessons/` and `corrections/` are two ends of one mechanism: the log counts, and a lesson
+that repeats in a second project graduates into a family. The ten families shipped here are
+**seeds from someone else's practice** - a checklist to start from, not a record of your own
+mistakes. The file says so in its own header, because a borrowed scar presented as your own
+is how a discipline turns decorative.
 
 ## Using it
 
