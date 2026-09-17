@@ -58,6 +58,21 @@ foreach ($rule in @('independent', 'Assumptions:', 'contradiction', 'published s
     Assert-True "rule survives translation: $rule" ($gov -match [regex]::Escape($rule))
 }
 
+Write-Output 'Group 3 - memory subsystem'
+
+$memReadme = Get-Text 'memory\README.md'
+Assert-True 'memory README exists' ($memReadme.Length -gt 0)
+Assert-True 'detection is by reparse point, not by looking empty' ($memReadme -match '(?i)reparse point')
+Assert-True 'the index is described as authored, not mirrored'    ($memReadme -match '(?i)authored')
+
+$memTemplate = Get-Text 'memory\memory-file.template.md'
+foreach ($field in @('name:', 'description:', 'metadata:', 'type:')) {
+    Assert-True "frontmatter field present: $field" ($memTemplate -match [regex]::Escape($field))
+}
+foreach ($kind in @('user', 'feedback', 'project', 'reference')) {
+    Assert-True "memory type documented: $kind" ($memTemplate -match "\b$kind\b")
+}
+
 Write-Output ''
 Write-Output "PASS $script:Pass  FAIL $script:Fail"
 if ($script:Fail -gt 0) { exit 1 }
