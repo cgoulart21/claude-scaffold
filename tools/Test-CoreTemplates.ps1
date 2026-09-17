@@ -73,6 +73,23 @@ foreach ($kind in @('user', 'feedback', 'project', 'reference')) {
     Assert-True "memory type documented: $kind" ($memTemplate -match "\b$kind\b")
 }
 
+Write-Output 'Group 4 - corrections, handoff and the review map'
+
+$corrections = Get-Text 'corrections\README.md'
+Assert-True 'corrections README exists' ($corrections.Length -gt 0)
+Assert-True 'second-occurrence promotion is stated' ($corrections -match '(?i)second occurrence')
+Assert-True 'the control-byte sweep is documented'  ($corrections -match '0x0B|0x0C')
+
+$plan = Get-Text 'handoff\PLAN.md'
+foreach ($field in @('Status:', 'Updated:', 'Base:')) {
+    Assert-True "checkpoint field present: $field" ($plan -match [regex]::Escape($field))
+}
+Assert-True 'staleness rule is stated' ($plan -match '14 days')
+
+$review = Get-Text 'review\README.md'
+Assert-True 'review map exists' ($review.Length -gt 0)
+Assert-True 'CI is named as the authoritative gate' ($review -match '(?i)authoritative')
+
 Write-Output ''
 Write-Output "PASS $script:Pass  FAIL $script:Fail"
 if ($script:Fail -gt 0) { exit 1 }

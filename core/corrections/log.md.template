@@ -1,0 +1,16 @@
+# Corrections log
+
+One line per correction: `YYYY-MM-DD - what I did - what they wanted`.
+Technical gotchas go here too: `YYYY-MM-DD - what I assumed - what was true`.
+
+A single correction lives **only** here. When the **same** correction shows up a **second
+occurrence**, it becomes a rule in the global instructions - or, if the repeat happened in
+a different project, a family in `LESSONS.md`. And only then.
+
+No weekly review, no proposals folder, no intermediate stage. Those stages existed once and
+the pipeline died in the second one. This file is the counter, nothing more.
+
+Append only. Repair a corrupt byte if you find one, but never rewrite another session's
+line.
+
+---
