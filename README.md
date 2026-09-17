@@ -1,52 +1,72 @@
 # claude-scaffold
 
-A **scaffold** for bootstrapping a Claude Code environment on Windows: a curated skill
-stack (Superpowers backbone + complementary skills), an optional Obsidian **LLM-wiki**
-("second brain"), governance instructions, and maintenance automation.
+A scaffold for setting up an agent-assisted development environment: the governance file,
+the memory system, the error-lesson discipline, the hooks, the maintenance triggers and an
+optional knowledge vault.
 
-It's **agent-driven**: instead of a brittle install script, you hand the scaffold to your
-own Claude Code and it sets everything up *on your machine*, adapting paths and asking your
-preferences. The repo ships generic **templates** — no personal data.
+It is **not** a copy of somebody's configuration. It ships shapes with the values left as
+placeholders, plus a playbook an agent follows to instantiate them on your machine.
+
+## The durability contract
+
+This is the first thing to understand, because the layout encodes it:
+
+| Folder | Rots | What it holds |
+|---|---|---|
+| `core/` | **never** | Method, discipline, schemas. Governance, lessons, memory, corrections, handoff, review |
+| `stack/` | **fast** | A dated inventory of tools. Carries a date stamp and a warning |
+| `automation/` | slowly | Hooks, maintenance scripts, trigger selection, verification patterns |
+| `vault/` | slowly | An optional knowledge wiki - schema only, ships empty |
+| `docs/` | slowly | The explanation: why any of this exists and how to lay out a machine |
+
+An earlier version of this repository had no such split. Every file looked equally current,
+so nothing could say *this one does not need updating* - and it spent months confidently
+teaching a governance file its author had already rewritten. The split is the fix, and the
+rule that keeps it working is in `CLAUDE.md`.
+
+**Read `core/` first.** It is the part that is still true after every tool named in `stack/`
+has been replaced.
 
 ## Quick start
 
-1. Install prerequisites: the **Claude app**, **Node.js/npm**, **git** (PowerShell ships
-   with Windows).
-2. Clone this repo and open Claude Code inside it.
-3. Say: **"Set up my Claude Code using SCAFFOLD.md."**
-4. Answer the agent's questions (which parts you want, where to put the vault, your
-   automation preference). It installs the stack, deploys the skills + governance, and
-   scaffolds an empty LLM-wiki.
-5. **Restart the Claude app**, then add your own API keys where prompted.
+1. Install the prerequisites: your agent CLI, Node, git. PowerShell ships with Windows.
+2. Clone this repository and open your agent inside it.
+3. Say: **"Set up my environment using SCAFFOLD.md."**
+4. Answer the questions - which parts you want, where the vault goes, which maintenance
+   trigger fits your machine.
+5. Restart the application so hooks and instructions load, then add your own credentials
+   where the agent tells you they are needed.
+
+Take the pieces you will actually maintain. A rule you do not follow is worse than no rule,
+because it teaches you the file is decorative. Two subsystems used properly beat five
+installed and ignored.
 
 ## What you get
 
-- **Skill stack** — Superpowers (methodology backbone) + `find-skills`, `task-observer`,
-  and the two authored skills **`source-grounded`** (ground code in version-specific docs)
-  and **`design-smells`** (structural review lens). See `manifest.md`.
-- **LLM-wiki** (optional) — an Obsidian vault whose `CLAUDE.md` (`templates/vault-CLAUDE.md`)
-  defines a self-maintaining knowledge base: Ingest / Query / Lint / Synthesize / Note plus
-  the "thinking" ops **Challenge / Connect / Emerge**. Starts empty — it's *your* knowledge.
-- **Governance** — `templates/global-CLAUDE.md` (operating behaviors, skill posture,
-  self-maintenance, update/backup triggers).
-- **Maintenance** (optional) — read-only update-check + a git backup of your authored
-  artifacts, on the cadence that fits your environment.
+- **A governance file** of eight rules, short enough to be read at the start of every
+  session. It came out of an audit that cut thirty-eight rules to eight and made them *more*
+  effective.
+- **Ten cross-cutting lesson families** - the errors that different projects learn
+  separately, each paying full price - plus the rule that grows your own.
+- **A memory system** that is one physical folder behind per-directory junctions, so a fact
+  learned in one project is visible from every other.
+- **A corrections log** that promotes a lesson into a rule on its second occurrence, and
+  has no stage in between, because that is where the previous design died.
+- **Three hooks**, of which the interesting one prints your lessons and gotchas into every
+  session instead of pointing at a file nobody opens.
+- **Maintenance that notifies and never applies**, with three trigger mechanisms and a test
+  for telling which one your host can actually run.
 
-## What this is NOT
+## What this is not
 
-- Not a turnkey clone of anyone's setup — the agent adapts it to you.
-- No personal notes, no secrets, no hardcoded personal paths. The vault is empty.
-- Windows-first (scripts are PowerShell); the plugin/skill installs are cross-platform, but
-  you'll translate the shell steps on macOS/Linux.
+- Not a turnkey clone of anyone's setup. The agent adapts it; you decide what to keep.
+- No personal data, no secrets, no real paths. A CI gate enforces that on every push, and
+  `tools/README.md` is honest about what that gate does and does not catch.
+- Windows-first: the scripts are PowerShell. The concepts are not, and the plugin and skill
+  installs are cross-platform - you will translate the shell steps on macOS and Linux.
 
-## Files
+## Credits and licence
 
-- `SCAFFOLD.md` — the playbook the agent follows.
-- `templates/` — global governance, the LLM-wiki schema, the two skills, maintenance scripts.
-- `manifest.md` — exact install commands (marketplaces, plugins, skills, CLIs).
-- `CREDITS.md` — attribution to every upstream project this stack reinstalls.
-
-## Credits & license
-
-Almost everything here reinstalls other people's work from source — see `CREDITS.md`.
-The authored templates are MIT-licensed (`LICENSE`).
+Most of the value here is other people's work, reinstalled from source rather than copied -
+see `CREDITS.md`. The authored parts are MIT (`LICENSE`), except
+`stack/skills/scientific-project-report/`, which is CC BY 4.0 and carries its own licence.

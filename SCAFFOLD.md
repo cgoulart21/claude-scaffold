@@ -1,111 +1,105 @@
-# SCAFFOLD — playbook for the agent
+# SCAFFOLD - the playbook for the setup agent
 
-**You are a Claude Code (or compatible) agent.** A user has cloned this repo and asked
-you to set up their environment "using this scaffold." This file is your playbook.
+**You are an agent.** Someone cloned this repository and asked you to set up their
+environment "using this scaffold". This file is your playbook.
 
-This scaffold is a **structure to reproduce, not a config to copy.** It contains generic
-templates (a skill stack, a governance file, an LLM-wiki schema, maintenance scripts) with
-**no personal data**. Your job is to install the stack and instantiate the templates **on
-the user's machine, adapting paths and asking their preferences.** Never invent the user's
-details — ask.
+This is a **structure to reproduce, not a configuration to copy.** Everything here is
+generic, with placeholders where real values belong. Your job is to install what they want
+and instantiate the templates **on their machine, adapting paths and asking their
+preferences.** Never invent their details - ask.
 
 ## Ground rules
 
-1. **Adapt, don't transplant.** Replace every placeholder (`<...>`), path, and name with
-   the user's actual values. Deploy targets are under `~/.claude` (use `$env:USERPROFILE`).
-2. **Ask before installing** anything, and **confirm** each phase. Surface assumptions.
-3. **Windows + PowerShell** is the assumed host (scripts are `.ps1`). On macOS/Linux,
-   translate the shell steps; the plugin/skill installs are cross-platform.
-4. Use the files under `templates/` as the source. Read `manifest.md` for exact
-   install commands and `CREDITS.md` for provenance.
-5. The knowledge vault starts **empty** — it's the user's knowledge, not the author's.
+1. **Adapt, do not transplant.** Replace every `<PLACEHOLDER>` with their actual value.
+   Deploy targets live under the agent home; derive it from the environment rather than
+   writing an absolute path.
+2. **Ask before installing anything**, and confirm each phase. Surface your assumptions out
+   loud rather than acting on them quietly.
+3. **Back up before you overwrite.** If a governance file, a hook or a settings file already
+   exists, copy it aside first and say where you put it. Someone else's configuration is
+   not yours to replace silently.
+4. **Windows and PowerShell** is the assumed host. On macOS or Linux, translate the shell
+   steps and say clearly which ones you translated - a script that was not run is not a
+   script that passed.
+5. **The vault ships empty.** It is their knowledge, not the author's.
 
-## Phase 0 — Interview (do this first)
+## Phase 0 - interview
 
-Ask the user which parts they want (all optional, independent):
+Ask which parts they want. They are independent; none requires another:
 
-- **A. Skill stack** — Superpowers backbone + curated skills + the two authored skills.
-- **B. Knowledge vault** — an Obsidian LLM-wiki (the "second brain"). If yes, ask for a
-  **location** and **name**. Warn: if placed inside a cloud-synced folder (OneDrive/Dropbox),
-  use git with a `--separate-git-dir` outside that folder to avoid sync conflicts.
-- **C. Maintenance automation** — periodic update-check + backup. If yes, determine the
-  **trigger model** (see Phase 5).
-- **D. Front-end tooling** — Impeccable (design) + the Obsidian format skills.
+- **A. `core/`** - governance, lessons, memory, corrections, handoff, review map. This is
+  the part worth having even alone.
+- **B. `stack/`** - the skill and plugin inventory. Dated; treat it as a starting list to
+  prune, not a shopping list to complete.
+- **C. `automation/`** - hooks, maintenance, verification.
+- **D. `vault/`** - the knowledge wiki. If yes, ask where it should live and warn about
+  cloud-synced folders (`vault/structure.md` has the git setup that survives one).
 
-Also ask: do they already have Node/npm, git, and the Claude app installed? (Prereqs.)
+Also ask what they already have: agent CLI, Node, git. And ask whether they keep a private
+backup repository for their own configuration - several pieces below want its path.
 
-## Phase 1 — Skill stack (if A)
+## Phase 1 - `core/` (if A)
 
-Follow `manifest.md`. In short:
+Deploy in this order, because each one is referenced by the next:
 
-1. Add marketplaces (`claude plugin marketplace add …`) and install plugins
-   (`claude plugin install <name>@<mkt> --scope user`). Install **only** the Superpowers
-   *core* — skip its memory plugins and Unix-first ones.
-2. Install third-party skills via `npx skills add <repo> --skill <s> --global --copy -y`,
-   then **prune** the duplicates that Superpowers already covers (see manifest).
-3. Install CLIs (`npm i -g …`).
+1. `core/governance/CLAUDE.md.template` to their agent home as the global instruction file.
+   **Replace the three placeholders** with the paths chosen in the following steps, and
+   delete the sections they did not opt into.
+2. `core/lessons/LESSONS.md` into a location they control and back up - ideally a private
+   git repository, not a scratch folder. Tell them plainly that the ten families are
+   **seeds from someone else's practice**, and that the second-occurrence rule is how they
+   grow their own.
+3. `core/memory/` - create the memory store, copy `MEMORY.md.template` and
+   `memory-file.template.md` in, and run `Set-MemoryJunctions.ps1` **without `-Apply`
+   first** so they can see what it would change before it changes anything.
+4. `core/corrections/log.md.template` as their corrections log.
+5. `core/handoff/PLAN.md` into a project when substantive work starts, and
+   `core/handoff/codex-AGENTS.md` if they use a second agent.
+6. `core/review/README.md` is reading material, not a deployable. Point them at it.
 
-The `PromptScript does not support global skill installation` warning is harmless.
+## Phase 2 - `automation/` (if C)
 
-## Phase 2 — Authored skills (if A)
+1. Copy the three hooks from `automation/hooks/` and wire them into the settings file. The
+   wiring JSON is in `automation/hooks/README.md`. **Wire the PreToolUse hooks for every
+   tool that can run a shell command**, not just one - a guard covering one of two shells
+   is a door left open.
+2. Edit the configuration block at the top of `session-start.ps1` to point at the lessons
+   file, memory index and corrections log from Phase 1. Leave a path empty to switch that
+   block off.
+3. Choose a maintenance trigger using `automation/triggers.md`. **Run the detection test
+   for their host** rather than assuming - two of the three paths fail silently on the
+   wrong machine, and a silent failure here means maintenance that never runs and never
+   says so.
+4. `automation/verification/` - set up the secret scanner in a pre-commit hook, and copy
+   `Assert-Baseline.ps1` with its example assertions replaced by their decisions.
 
-Copy `templates/skills/source-grounded` and `templates/skills/design-smells` into
-`~/.claude/skills/`. They're self-contained.
+## Phase 3 - `stack/` (if B)
 
-## Phase 3 — Global governance (if A)
+Work from `stack/manifest.md`, and read `stack/README.md` **to them** first, or at least
+the warning: it is a dated snapshot, not a recommendation. Install by name, never "all
+minus a list". Skip anything they cannot say they will use.
 
-Copy `templates/global-CLAUDE.md` to `~/.claude/CLAUDE.md` (back up any existing one
-first). Adapt the maintenance section to the user's chosen trigger model (Phase 5). Remove
-the parts the user didn't opt into.
+The four skills in `stack/skills/` copy into their global skills directory.
+`scientific-project-report` keeps its own licence file alongside it.
 
-**Cross-agent handoff (if the user also uses Codex):** deploy `templates/codex-AGENTS.md`
-to `~/.codex/AGENTS.md` so Claude and Codex share the same `PLAN.md` handoff convention.
-Drop `templates/PLAN.md` into a project (or let the agents create it) when substantive work
-starts — it's the shared live-state doc that makes the Claude⇄Codex switch seamless.
+## Phase 4 - `vault/` (if D)
 
-## Phase 4 — Knowledge vault / LLM-wiki (if B)
+1. Create the folder tree from `vault/structure.md`.
+2. Copy `vault/AGENTS.md.template` in as the vault's instruction file, adapting paths.
+3. `git init` - with `--separate-git-dir` if it sits in synced storage - and set up LFS
+   **before** the first binary is committed.
+4. Tell them how to drive it, and mention **harvest** specifically: it is the operation that
+   collects learning out of their code repositories, and the one people leave out.
 
-1. Create the vault folder at the user's chosen location.
-2. Put `templates/vault-CLAUDE.md` there as the vault's `CLAUDE.md` (this is the schema).
-3. Create the structure it defines: `raw/sources/`, `raw/assets/`,
-   `wiki/{entities,concepts,sources,queries,notes,meta}/`, and empty
-   `wiki/meta/index.md` + `wiki/meta/log.md`.
-4. `git init` (with the `--separate-git-dir` tip if in a cloud folder). Optionally open in
-   Obsidian.
-5. Tell the user how to drive it: "ingest <file>", "lint the wiki", "synthesize <topic>",
-   "challenge this", "connect A and B", "what's emerging" — the operations are in the
-   vault's CLAUDE.md.
+## Phase 5 - finish
 
-## Phase 5 — Maintenance automation (if C)
+- Remind them to **restart the application** so hooks and instructions load.
+- List what still needs **their** credentials. You never had them and never should.
+- Summarise what you installed, and say explicitly **what you skipped and why**. A setup
+  report that only lists successes is the one that gets believed and should not be.
+- Tell them where their backup repository is and what it now contains.
 
-Deploy `templates/scripts/check-updates.ps1` and `backup-config.ps1` to
-`~/.claude/maintenance/`, editing the placeholder paths (e.g. the backup repo path).
+## What this scaffold deliberately omits
 
-**Choose the trigger:**
-- **Normal Claude Code install** → a Windows Task Scheduler job can run the check
-  unattended.
-- **MSIX/Store-packaged app or host-managed auth** → unattended `claude -p` will 401 and
-  Task Scheduler won't see the app's npm globals. Use a **session-driven** trigger encoded
-  in `~/.claude/CLAUDE.md` (date-marker gated), run in-session. To detect: check whether
-  `AppData\Roaming\npm` is a reparse point into `…\Packages\…\LocalCache\…` (→ MSIX), or
-  whether `claude -p "hi"` returns 401.
-
-For the backup, help the user create a **private** git repo of their own authored
-artifacts (their `~/.claude` skills/CLAUDE.md/scripts) and wire `backup-config.ps1` to it.
-
-## Phase 6 — Extras (if D) & heavy/manual pieces
-
-Impeccable and the Obsidian skills are in `manifest.md`. Domain tools (a CAD plugin, KiCad
-MCP, MATLAB MCP, PlatformIO, etc.) are the user's own choice and often need per-tool setup
-and their own credentials — install only what they ask for.
-
-## Phase 7 — Finish
-
-- Remind the user to **restart the Claude app** (plugins/skills/CLAUDE.md load at start).
-- List what still needs **their** credentials (e.g. a web-search/scrape API key).
-- Summarize what you installed and what you deliberately skipped.
-
-## What this scaffold intentionally omits
-
-No personal memory, no project data, no secrets, no machine-specific paths. The author's
-own instance stays private; this is only the reusable shape.
+No personal memory, no project data, no secrets, no real paths, and no domain toolchain
+instructions. The author's own instance stays private; this is only the reusable shape.

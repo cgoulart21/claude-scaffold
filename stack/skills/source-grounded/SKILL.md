@@ -42,4 +42,6 @@ Follow the doc's current idiom for that version — not a remembered one. If the
 
 Show the sources inline so they're checkable: page/table/section + URL (or datasheet §/figure). For hardware, cite the exact register/pin/timing spec used. In the vault, this doubles as the traceability every claim needs (Quality Rules).
 
+**Reviewing dormant / config-gated paths.** A formula behind a feature flag at `0/off`, or a precondition that rarely triggers, still gets the full DETECT→FETCH→CITE treatment. Runtime silence is *not* verification — a unit error in a path guarded by `config == 0.0` stays invisible until the day the config changes, then fires in the field. Re-derive the formula *and its preconditions* from the datasheet even when the path is currently inert.
+
 **When NOT to use:** pure logic (loops, data structures), renames/moves, version-independent code, or when the user explicitly wants speed over verification.
