@@ -88,3 +88,27 @@ With `-Apply`, a real folder is **copied into the store before it is removed**, 
 already present in the store is never overwritten - the store's copy may be the newer one.
 That ordering is the whole safety argument: converting a folder into a junction destroys
 its contents, and some of those contents may exist nowhere else.
+
+## A junction inside a repository is invisible to git
+
+Worth knowing before you put a reparse point anywhere under version control, because
+nothing warns you.
+
+Where `core.symlinks` is `false` - the usual case on Windows - git **follows** a junction
+and records the target's bytes as ordinary blobs (`100644`), never as a link (`120000`).
+The repository keeps no record that a link was ever there. `git status` stays clean, but
+only because the live target still matches what was committed: edit or delete the target
+and the "versioned" file changes silently. One archive built this way turned out to be
+twelve directories of links into a live skill root; removing one skill from that live root
+made twelve archived files show up as deleted. **An archive made of links is not an
+archive** - it evaporates along with the thing it was meant to preserve.
+
+Two consequences for this layout. The junctions belong in the agent home, which is not a
+repository, and the memory store belongs in the repository, which holds no junctions -
+keep that direction and the trap never fires. If you do find a reparse point inside a
+repository, remove the link itself with `[IO.Directory]::Delete($path, $false)`, which
+deletes only the reparse point and **fails** on a real non-empty folder; that failure is
+the safety net. Never `rm -rf`, which would follow the link into the live target. Restoring
+the real content with `git checkout` fails while the link is still there, so the order is
+forced: remove the link, then check out, then compare hashes against a manifest captured
+beforehand.

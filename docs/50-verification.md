@@ -24,6 +24,22 @@ explicit abort - otherwise the negative test passes by testing nothing.
 Every gate in this repository uses `0` / `1` / `2` for exactly this reason, and `2` never
 means success.
 
+## The exit contract of a gate
+
+The three states apply to what a gate *returns*, not only to what it prints. A gate whose
+break path exits with the same code as its finding has two states, and the one it lost is
+the difference between *I found a problem* and *I broke*.
+
+The human reader is not the measure. When the gate throws, the exception is right there in
+the output and a person tells the difference instantly - while a chained suite, a CI job or
+a hook reads only the number and tells nothing apart. Reserve a code for "could not verify",
+make sure no break path can reach the finding code, and have malformed input become a
+formatted finding rather than an exception.
+
+In the test, never assert only the exit code. Assert something that **only a successful run
+produces**: the named target, a `file:line`, the word FAIL. That one extra line is what
+catches the runs where the code was right and the gate never executed.
+
 ## Name the level you validated
 
 Write the whole sentence: *"it passed X, therefore Y."* Then check whether X actually
