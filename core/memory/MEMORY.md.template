@@ -1,0 +1,29 @@
+# Memory index
+
+Only the gotchas you would get wrong without them. Installation diaries and project status
+do not belong here - they age into noise and push the useful lines off the first screen.
+
+**This file is authored, not mirrored.** It is written by hand and grouped the way you
+actually think about your tools. A sync script may warn that a file on disk has no line
+here; it must never write the line for you. The judgement is the whole value.
+
+**Method and verification discipline do not live here.** They go to
+`<LESSONS-PATH>/LESSONS.md`. This file is tools and projects only.
+
+## Tool gotchas
+
+<!-- One line each: [Title](file-name.md) - the hook, short enough to scan. Example:
+
+- [Some CLI: pinned version](some-cli-setup.md) - pinned at 1.2.3; 1.2.4 rejects the input
+  format this project uses. Never invoke it through a runner that pulls latest.
+
+Delete this comment once you have a real line. -->
+
+## Per-project toolchain
+
+<!-- How to build, test and verify each project, when the answer is not obvious from the
+repository itself. -->
+
+## Project context
+
+<!-- What a project is for, and the constraints that are not visible in its code. -->

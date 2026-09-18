@@ -1,0 +1,30 @@
+# Structural markers of personal data. No proper nouns live here.
+# The nominal list (real names, handles, project names) belongs in a private
+# repository and is passed to the same scanner with -PatternFile.
+#
+# Format: a "# id:" line and a "# desc:" line, then one regex line.
+# ASCII only - Windows PowerShell 5.1 reads UTF-8 without BOM as ANSI.
+
+# id: win-user-path
+# desc: absolute Windows user-profile path carrying a real account name
+(?i)[a-z]:\\users\\(?!<user(?:name)?>|\$env:username|%username%)
+
+# id: bash-user-path
+# desc: Git Bash form of a Windows user-profile path
+(?i)/[a-z]/users/(?!<user(?:name)?>)
+
+# id: abs-drive-path
+# desc: absolute drive-letter path outside the documentation placeholders
+(?i)\b[a-z]:\\(?!projects\\|path\\to\\|users\\)
+
+# id: email
+# desc: e-mail address outside the reserved example domains
+[A-Za-z0-9._%+-]+@(?!example\.(?:com|org)\b)[A-Za-z0-9.-]+\.[A-Za-z]{2,}
+
+# id: artifact-url
+# desc: link to a published artifact or document
+(?i)claude\.ai/[^\s)"']*artifact
+
+# id: session-silo
+# desc: per-working-directory session silo path
+(?i)\.claude[/\\]projects[/\\]

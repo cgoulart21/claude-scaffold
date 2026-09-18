@@ -1,0 +1,31 @@
+# Corrections log
+
+One line per correction, **starting with a dash**:
+
+```
+- YYYY-MM-DD - what I did - what they wanted
+- YYYY-MM-DD - what I assumed - what was true
+```
+
+A concrete one, so the shape is unambiguous and a test can check it:
+
+```
+- 2026-01-15 - reported the suite green - it never ran; the harness died before the first assertion
+```
+
+The leading `- ` is not cosmetic. `session-start.ps1` counts entries with
+`^- \d{4}-\d{2}-\d{2} `, and a log written without it matches zero lines - so the counter
+this whole mechanism rests on silently reports nothing, forever, with no error. If you
+change the shape here, change the regex there.
+
+A single correction lives **only** here. When the **same** correction shows up a **second
+occurrence**, it becomes a rule in the global instructions - or, if the repeat happened in
+a different project, a family in `LESSONS.md`. And only then.
+
+No weekly review, no proposals folder, no intermediate stage. Those stages existed once and
+the pipeline died in the second one. This file is the counter, nothing more.
+
+Append only. Repair a corrupt byte if you find one, but never rewrite another session's
+line.
+
+---

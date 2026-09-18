@@ -1,37 +1,49 @@
 # Credits
 
-This scaffold is mostly other people's work, reinstalled from source. Nearly everything is
-theirs; only the two skills (`source-grounded`, `design-smells`), the governance
-`global-CLAUDE.md`, the LLM-wiki schema, and the maintenance scripts are authored here — and
-even those **mine ideas** from the projects below (credited inline).
+Most of the value in this repository is other people's work. Almost nothing is vendored:
+`stack/manifest.md` reinstalls things from their own sources, so upstream fixes reach you
+and nobody maintains a fork.
 
-## Plugins & skills (installed from source)
+## Vendored here, with permission of their licences
 
-- **Superpowers** — Jesse Vincent (@obra) · `obra/superpowers` — methodology backbone.
-- **Matt Pocock skills** — Matt Pocock (@mattpocock) · `mattpocock/skills` — engineering skills + the `skills` CLI (skills.sh).
-- **find-skills** — Vercel Labs · `vercel-labs/skills`.
-- **Task Observer / "One Skill to Rule Them All"** — Rebelytics · `rebelytics/one-skill-to-rule-them-all` (CC BY 4.0).
-- **Impeccable** — Paul Bakaus (@pbakaus) · `pbakaus/impeccable` — front-end design quality.
-- **Obsidian skills** — Steph Ango / kepano (@kepano) · `kepano/obsidian-skills` — `obsidian-markdown`, `defuddle`.
-- **text-to-cad** — @earthtojake · `earthtojake/text-to-cad` — CAD/robotics/fab skills.
-- **kicad-happy** — @aklofas · `aklofas/kicad-happy` — KiCad skills.
-- **Codex plugin** — OpenAI · `openai/codex-plugin-cc`.
-- **Firecrawl** — Firecrawl · via `anthropics/claude-plugins-official`.
+| What | Origin | Licence |
+|---|---|---|
+| `stack/skills/source-grounded` | Adapted from `addyosmani/agent-skills` (source-driven-development) | see upstream |
+| `stack/skills/design-smells` | Authored, mined from `addyosmani/agent-skills` (code-review-and-quality) and a published software-engineering playbook | MIT with this repository |
+| `stack/skills/diagnose` | A customisation of an upstream skill from `mattpocock/skills` | see upstream |
+| `stack/skills/scientific-project-report` | Authored | **CC BY 4.0**, own `LICENSE.txt` |
 
-## Ideas mined into our authored artifacts (not installed)
+The first three carry their attribution in their own `SKILL.md` as well as here. If you
+redistribute them, keep it: two of them are derivative works and the third is somebody
+else's skill with local changes.
 
-- **`eugeniughelbur/obsidian-second-brain`** — the vault's Challenge / Connect / Emerge
-  operations (schema 2.2) are adapted from its "thinking tools." Not migrated.
-- **`addyosmani/agent-skills`** (Addy Osmani, "Software Engineering at Google" playbook) —
-  `source-grounded` (from source-driven-development), `design-smells` (from
-  code-review-and-quality), the global "operating behaviors" (from using-agent-skills),
-  and the Challenge EXTRACT technique (from doubt-driven-development). Plugin not installed.
+## Installed from source, never copied
 
-## Tooling
+| Project | What it provides |
+|---|---|
+| `obra/superpowers-marketplace` | The methodology plugin that acts as the backbone of the skill stack |
+| `mattpocock/skills` | A large general-purpose skill collection |
+| `vercel-labs/skills` | `find-skills`, for discovering what else is out there |
+| `kepano/obsidian-skills` | `obsidian-markdown` and `defuddle` |
+| Gitleaks | The secret scanner behind `automation/verification/` |
 
-- **Claude Code** (Anthropic) — the host.
-- **Defuddle CLI**, **Node/npm**, **PowerShell**, **git**, **uv/uvx**, **PlatformIO**,
-  **MATLAB**, **KiCad**, **build123d/OCP** — respective authors.
+Their licences are their own; this repository only tells you how to install them.
 
-All third-party components remain under their own licenses; this repo neither vendors
-nor relicenses them — it only records how to reinstall them.
+## Ideas taken, not code
+
+Some of what is here is a shape learned from reading other people's work rather than
+anything copied from it:
+
+- The **second-occurrence rule** and the failure of staged observation pipelines came out of
+  auditing one such pipeline that had captured ninety-nine observations and applied one.
+- The **lesson families** in `core/lessons/` are a distillation of errors paid for across
+  many projects. The occurrences behind them have been removed - they named projects, people
+  and dates - and what remains is the shape.
+- The **durability contract** came from this repository's own failure: it froze for months
+  while looking current, and the folder split is the fix.
+
+## Licence
+
+The authored parts are MIT - see `LICENSE`. The exception is
+`stack/skills/scientific-project-report/`, which is CC BY 4.0 and ships with its own licence
+file; keep that file with the folder if you redistribute it.

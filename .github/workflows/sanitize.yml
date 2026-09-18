@@ -1,0 +1,58 @@
+name: sanitize
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  gate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The suite runs first on purpose: a broken scanner that exits 0 would sail
+      # through the scan below without reading a single file. Only the suite proves
+      # that exit 1 is still reachable.
+      - name: Gate self-test
+        shell: powershell
+        run: |
+          .\tools\Test-CheckNoPersonalData.ps1
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Core template assertions
+        shell: powershell
+        run: |
+          .\tools\Test-CoreTemplates.ps1
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Memory junction behaviour
+        shell: powershell
+        run: |
+          .\tools\Test-SetMemoryJunctions.ps1
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Hook behaviour
+        shell: powershell
+        run: |
+          .\tools\Test-Automation.ps1
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Stack and root assertions
+        shell: powershell
+        run: |
+          .\tools\Test-Stack.ps1
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Guide assertions
+        shell: powershell
+        run: |
+          .\tools\Test-Docs.ps1
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Scan the tree
+        shell: powershell
+        run: |
+          .\tools\check-no-personal-data.ps1 -Path .
+          if ($LASTEXITCODE -ne 0) { exit 1 }

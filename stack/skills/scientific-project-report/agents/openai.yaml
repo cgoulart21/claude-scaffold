@@ -1,0 +1,4 @@
+interface:
+  display_name: "Scientific Project Report"
+  short_description: "Reconstruct evidence-led scientific reports"
+  default_prompt: "Use $scientific-project-report to reconstruct this iterative project and draft a self-contained scientific report."
