@@ -45,6 +45,12 @@ jobs:
           .\tools\Test-Stack.ps1
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
+      - name: Guide assertions
+        shell: powershell
+        run: |
+          .\tools\Test-Docs.ps1
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
       - name: Scan the tree
         shell: powershell
         run: |

@@ -17,6 +17,7 @@ This is the first thing to understand, because the layout encodes it:
 | `stack/` | **fast** | A dated inventory of tools. Carries a date stamp and a warning |
 | `automation/` | slowly | Hooks, maintenance scripts, trigger selection, verification patterns |
 | `vault/` | slowly | An optional knowledge wiki - schema only, ships empty |
+| `docs/` | slowly | The guide: why any of this exists, and how to lay out a machine |
 
 An earlier version of this repository had no such split. Every file looked equally current,
 so nothing could say *this one does not need updating* - and it spent months confidently
@@ -25,6 +26,23 @@ rule that keeps it working is in `CLAUDE.md`.
 
 **Read `core/` first.** It is the part that is still true after every tool named in `stack/`
 has been replaced.
+
+## The guide
+
+If you want the reasoning before the files, `docs/` is a short book:
+
+| | |
+|---|---|
+| [Why any of this exists](docs/00-why.md) | The three failures this addresses, none of which is a reasoning failure |
+| [Laying out a machine](docs/10-machine-setup.md) | Where everything goes, and the three traps that make a layout look right and behave wrong |
+| [The four memories](docs/20-the-four-memories.md) | The idea most setups get wrong, with a table for *where does this go?* |
+| [Governance](docs/30-governance.md) | Why eight rules beat thirty-eight |
+| [Skills, plugins and hooks](docs/40-skills-and-plugins.md) | Five overlapping names, and which one you actually need |
+| [Verification](docs/50-verification.md) | Three states, never two |
+| [Maintenance](docs/60-maintenance.md) | Keeping it, and the two cadences |
+| [Questions](docs/99-faq.md) | Including the minimum viable subset, if you want to start small |
+
+Start with [the four memories](docs/20-the-four-memories.md) if you only read one.
 
 ## Quick start
 
