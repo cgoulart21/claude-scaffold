@@ -40,6 +40,22 @@ In the test, never assert only the exit code. Assert something that **only a suc
 produces**: the named target, a `file:line`, the word FAIL. That one extra line is what
 catches the runs where the code was right and the gate never executed.
 
+## What is enforced, and what you are hoping to remember
+
+A rule with no mechanical backer is a rule you are hoping to remember. One study of 481
+public instruction files found roughly **4% of natural-language security rules had a
+matching enforcement rule**; the rest were prose, and prose does not fire.
+
+So audit your own instruction file against its enforcement surfaces: for each rule, name the
+hook, gate, CI job or assertion that would catch you. Either you install the missing backer
+or you learn which rules run on the honour system - both are worth knowing. Judgement rules
+are fine as prose. The dangerous ones are *mechanical* rules left unbacked, because they
+look enforced.
+
+The two worst cases share a shape: a rule that exists **because it already failed**, and
+still has nothing measuring it. If you paid for a rule twice and never wired it, the third
+time is already scheduled.
+
 ## Name the level you validated
 
 Write the whole sentence: *"it passed X, therefore Y."* Then check whether X actually

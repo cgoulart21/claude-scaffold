@@ -28,6 +28,34 @@ reporting success from a machine where it has not worked in months.
 So: never `exit 0` on an error path. If the tool is missing, that is `2`. If the config
 cannot be parsed, that is `2`. Say which surface you actually exercised.
 
+## The escapes that corrupt without a warning
+
+A class worth a gate of its own, because every part of it is silent.
+
+In a non-raw Python string, `\a` `\b` `\f` `\v` are **valid** escapes - they produce
+BEL, backspace, form feed and vertical tab. No `SyntaxWarning`, no error, just a control
+byte written into your file. Windows paths are where it bites: a path ending `\tools\analysis`
+becomes a TAB, then `ools`, then a BEL, then `nalysis`. The path is now unfollowable and looks almost right.
+
+Two things make it worse than an ordinary typo. The byte is invisible in most editors and
+in `git diff`, so review does not catch it - `cat -A` or a byte scan does. And the natural
+scope for the rule is too narrow: a rule that says "scan after appending to the log" misses
+every other file. Scan **all** tracked text, not the files you were thinking about when you
+wrote the rule.
+
+Scan for `0x00`, `0x07`, `0x08`, `0x0B`, `0x0C`. Leave TAB, LF and CR alone - they are
+legitimate, and accept what that costs you: `\t` corrupts a path exactly the same way,
+and a TAB is indistinguishable from an intended one. **The gate is worth what it
+enumerates.** The corruption this section describes was found by hand, in the sentence
+above, *after* the byte gate reported the file clean - because the survivor was a TAB. Report `file:line`, not just the filename, because the byte's position is the
+only thing that makes it findable. Repair the byte alone and verify the intended value
+before writing it: fixing a corrupt path to a *different* wrong path is a real outcome.
+
+One caution learned the hard way: order the checks before any trimming. A gate that strips
+trailing dots before testing for an ellipsis will eat the ellipsis and then report a finding
+against a target that never existed - a well-formed finding pointing at the wrong thing,
+which is the worse half of family 2.
+
 ## Snapshot-first: the bytes written are the bytes validated
 
 When a script *generates* something and then *validates* it, there is a gap where the two

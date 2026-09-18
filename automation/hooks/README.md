@@ -7,6 +7,20 @@ Three hooks. Two guard, one informs. The informing one is the reason this folder
 | `block-dangerous-git.ps1` | `PreToolUse` | yes - exit 2 stops the tool call |
 | `review-before-commit.ps1` | `PreToolUse` | never - advisory only |
 | `session-start.ps1` | `SessionStart` | n/a - prints context |
+| `session-start.ps1 -IndexOnly` | `PreCompact` | n/a - prints context |
+
+**Compaction is a session boundary in miniature, and it is the one people forget.** When a
+long session compacts, the block `SessionStart` printed is gone - and that block was the
+only path by which the lesson families and the tool gotchas reached the context at all.
+Registering the same script on `PreCompact` puts them back.
+
+Use a mode switch rather than a second script: one operational source, per family 5. The
+maintenance reminders should *not* repeat on compaction - they already fired when the
+session opened, and repeating them teaches the reader to skip the whole block. What is
+worth adding in compact mode is a nudge to write down state that only exists in the
+context about to be discarded: if the project has an `active` plan file, say so, because
+after compaction the detail that would have filled `Done`/`Next` is no longer there to
+write.
 
 ## Why `session-start.ps1` matters more than the other two
 
