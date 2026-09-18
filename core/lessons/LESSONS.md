@@ -107,6 +107,26 @@ implicitly declares the others do not exist - the same root as the sub-pattern i
 Every error path should classify the cause from the real output, or say "cause not
 classified" and print it.
 
+**The exit contract of a gate.** Three states apply to what a gate *returns*, not only to
+what it reports. A gate whose break path produces the same exit code as its finding has two
+states, not three - and what it loses is exactly the distinction between *I found a problem*
+and *I broke*. **The human reader is not the measure:** when a path test throws, the
+exception is visible in the output and a person tells the difference; a caller that consumes
+only the code - a chained suite, CI, a hook - tells nothing apart.
+
+*Apply:* reserve a code for "could not verify" (`2` is a workable convention) and make sure
+**no break path can reach the finding code** - malformed input becomes a formatted finding,
+never an exception. And never assert only the exit code: assert some evidence that **only a
+successful run produces** - the named target, the `file:line`, the word FAIL. One extra
+assertion of that kind caught two cases where the exit code was "right" and the gate had not
+run.
+
+A related failure: a gate can be green because no case exercises the path. A link checker
+passed seventeen assertions while two legitimate syntaxes - an aliased target and a
+section-anchored one - made it throw or emit a well-formed finding against a target that
+existed. None of the seventeen used either syntax. **Missing coverage does not show up as
+FAIL; it shows up as green.**
+
 ---
 
 ## 3. Internal consistency does not prove a correct binding
