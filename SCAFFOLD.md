@@ -23,9 +23,45 @@ preferences.** Never invent their details - ask.
    script that passed.
 5. **The vault ships empty.** It is their knowledge, not the author's.
 
+## The paths this playbook uses
+
+Every `<PLACEHOLDER>` below is a real location you must establish before Phase 1. **Confirm
+them with the user rather than assuming** - a host that stores its configuration elsewhere
+is exactly the case where a silent wrong guess costs the most, because nothing errors: the
+files land where nothing reads them.
+
+| Placeholder | What it is | Usual value on this stack |
+|---|---|---|
+| `<AGENT-HOME>` | The agent's configuration directory | `$env:USERPROFILE/.claude` |
+| `<SETTINGS-FILE>` | The user-scope settings file that holds `hooks` and `permissions` | `<AGENT-HOME>/settings.json` |
+| `<HOOKS-DIR>` | Where hook scripts live | `<AGENT-HOME>/hooks` |
+| `<SKILLS-DIR>` | The global skills directory | `<AGENT-HOME>/skills` |
+| `<MAINTENANCE-DIR>` | Maintenance scripts and their date markers | `<AGENT-HOME>/maintenance` |
+
+Three more are **the user's choice** and are collected in Phase 0, not derived:
+
+| Placeholder | What it is | Constraint |
+|---|---|---|
+| `<MEMORY-STORE>` | The single physical memory folder | Inside a git repository they control |
+| `<LESSONS-FILE>` | Their `LESSONS.md` | Backed up; not a scratch folder |
+| `<CORRECTIONS-LOG>` | Their corrections log | Next to the lessons file, and backed up with it |
+
+The last three are deliberately **not** under `<AGENT-HOME>`. That directory is application
+state - it gets rewritten by updates and is not version-controlled - and these three files
+are the ones you least want to lose. Deploy targets that are *configuration* go under the
+agent home; targets that are *accumulated knowledge* go in a repository.
+
+**Deployed files get their `.template` suffix removed**, and their contents keep the name
+their consumer expects: `CLAUDE.md.template` becomes the global instruction file,
+`MEMORY.md.template` becomes `MEMORY.md`, `log.md.template` becomes `log.md`.
+`memory-file.template.md` keeps its name - it is a form to copy per memory, not a file to
+deploy once.
+
 ## Phase 0 - interview
 
-Ask which parts they want. They are independent; none requires another:
+Ask which parts they want. They are independent, except that `automation/`'s session-start
+hook has nothing to inject unless `core/` gave it a lessons file and a memory index - say so
+if they want C without A, rather than delivering a hook with two of its three blocks dark.
 
 - **A. `core/`** - governance, lessons, memory, corrections, handoff, review map. This is
   the part worth having even alone.
@@ -35,43 +71,77 @@ Ask which parts they want. They are independent; none requires another:
 - **D. `vault/`** - the knowledge wiki. If yes, ask where it should live and warn about
   cloud-synced folders (`vault/structure.md` has the git setup that survives one).
 
-Also ask what they already have: agent CLI, Node, git. And ask whether they keep a private
-backup repository for their own configuration - several pieces below want its path.
+Also ask what they already have: agent CLI, Node, git. Then collect the four locations the
+playbook cannot derive:
+
+- **The private backup repository** for their configuration - several pieces below want its
+  path. If they do not have one, offer to create it; the alternative is that the three
+  knowledge files below live only in application state.
+- **`<MEMORY-STORE>`**, **`<LESSONS-FILE>`** and **`<CORRECTIONS-LOG>`** - defaulting to
+  that repository is a good suggestion, not an assumption to make silently.
+
+Finally, confirm `<AGENT-HOME>` and the four paths derived from it, from the table above.
+One question, and it removes the single largest class of silent failure in this playbook.
 
 ## Phase 1 - `core/` (if A)
 
 Deploy in this order, because each one is referenced by the next:
 
-1. `core/governance/CLAUDE.md.template` to their agent home as the global instruction file.
-   **Replace the three placeholders** with the paths chosen in the following steps, and
-   delete the sections they did not opt into.
-2. `core/lessons/LESSONS.md` into a location they control and back up - ideally a private
-   git repository, not a scratch folder. Tell them plainly that the ten families are
-   **seeds from someone else's practice**, and that the second-occurrence rule is how they
-   grow their own.
-3. `core/memory/` - create the memory store, copy `MEMORY.md.template` and
-   `memory-file.template.md` in, and run `Set-MemoryJunctions.ps1` **without `-Apply`
-   first** so they can see what it would change before it changes anything.
-4. `core/corrections/log.md.template` as their corrections log.
+1. `core/lessons/LESSONS.md` to `<LESSONS-FILE>`. Tell them plainly that the ten families
+   are **seeds from someone else's practice**, and that the second-occurrence rule is how
+   they grow their own.
+2. `core/corrections/log.md.template` to `<CORRECTIONS-LOG>`, suffix removed. **Keep the
+   leading `- ` in its line format**: the session-start hook counts entries by it.
+3. `core/memory/` - create `<MEMORY-STORE>`, copy `MEMORY.md.template` in as `MEMORY.md`
+   and `memory-file.template.md` alongside it, then run `Set-MemoryJunctions.ps1
+   -MemoryRoot <MEMORY-STORE> -SiloRoot <AGENT-HOME>/projects` **without `-Apply` first**,
+   so they see what it would change before it changes anything.
+4. `core/governance/CLAUDE.md.template` to `<AGENT-HOME>` as the global instruction file.
+   Replace `<MEMORY-PATH>`, `<LESSONS-PATH>` and `<CORRECTIONS-PATH>` with the three paths
+   just established - which is why this step comes after them, not before.
+
+   Delete whole `##` sections only for parts they declined: `## Maintenance` belongs to C,
+   `## Cross-project knowledge` to A. Leave the rest; a rule they did not ask about is
+   cheaper to read than a gap they have to notice.
 5. `core/handoff/PLAN.md` into a project when substantive work starts, and
    `core/handoff/codex-AGENTS.md` if they use a second agent.
 6. `core/review/README.md` is reading material, not a deployable. Point them at it.
 
 ## Phase 2 - `automation/` (if C)
 
-1. Copy the three hooks from `automation/hooks/` and wire them into the settings file. The
-   wiring JSON is in `automation/hooks/README.md`. **Wire the PreToolUse hooks for every
-   tool that can run a shell command**, not just one - a guard covering one of two shells
-   is a door left open.
-2. Edit the configuration block at the top of `session-start.ps1` to point at the lessons
-   file, memory index and corrections log from Phase 1. Leave a path empty to switch that
-   block off.
-3. Choose a maintenance trigger using `automation/triggers.md`. **Run the detection test
+1. Copy the three hooks into `<AGENT-HOME>/hooks/` and wire them into the settings file.
+   The wiring JSON is in `automation/hooks/README.md`. **Wire the PreToolUse pair for both
+   shell-capable tools** - the ones named `Bash` and `PowerShell` - because a guard covering
+   one of two shells is a door left open.
+
+   If this host has a *third* tool that can run shell commands, wiring the guard to it is
+   not enough: `block-dangerous-git.ps1` answers any event whose tool name is outside its
+   own allowlist with exit 2, so a third name turns the guard into a wall that blocks
+   everything. Add the name to the allowlist in the script **and** to the wiring, or leave
+   both alone.
+
+2. Edit the configuration block at the top of **`session-start.ps1` and
+   `review-before-commit.ps1`** - both have one - to point at the lessons file, memory index
+   and corrections log from Phase 1. Leave a path empty to switch that block off; a path
+   that is set but does not resolve produces a warning, which is deliberate.
+3. Deploy `automation/maintenance/check-updates.ps1` and `backup-config.ps1` into
+   `<AGENT-HOME>/maintenance/`, and fill in `backup-config.ps1`'s two configuration values
+   with the private backup repository from Phase 0. Create the folder itself: the
+   session-start hook warns when it is missing, and on a fresh install it always is.
+4. Choose a maintenance trigger using `automation/triggers.md`. **Run the detection test
    for their host** rather than assuming - two of the three paths fail silently on the
    wrong machine, and a silent failure here means maintenance that never runs and never
    says so.
-4. `automation/verification/` - set up the secret scanner in a pre-commit hook, and copy
-   `Assert-Baseline.ps1` with its example assertions replaced by their decisions.
+5. `automation/verification/` - copy `Assert-Baseline.ps1` with its example assertions
+   replaced by their decisions, and set up the secret scanner.
+
+   **The scanner needs a binary this repository does not ship and cannot install for you.**
+   Get the official release for their platform, verify its checksum, and put it where
+   `Invoke-Gitleaks.ps1` expects it or pass `-GitleaksPath`. Then call the wrapper from a
+   `pre-commit` hook in each repository they want scanned - there is no hook template here,
+   because a pre-commit hook is a few lines and writing it for their layout beats shipping
+   one that assumes it. If you cannot complete this step, **say so in the Phase 5 summary**
+   rather than leaving a wrapper that exits 2 forever.
 
 ## Phase 3 - `stack/` (if B)
 

@@ -42,9 +42,9 @@ installed and ignored.
 
 ## What you get
 
-- **A governance file** of eight rules, short enough to be read at the start of every
-  session. It came out of an audit that cut thirty-eight rules to eight and made them *more*
-  effective.
+- **A governance file** of eight rules across seven sections, short enough to be read at
+  the start of every session. It came out of an audit that cut thirty-eight rules to eight
+  and made them *more* effective.
 - **Ten cross-cutting lesson families** - the errors that different projects learn
   separately, each paying full price - plus the rule that grows your own.
 - **A memory system** that is one physical folder behind per-directory junctions, so a fact

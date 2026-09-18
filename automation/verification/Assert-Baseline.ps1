@@ -61,14 +61,28 @@ if ($settings.PSObject.Properties.Name -contains 'permissions' -and
 Assert-True 'environment files are denied' (@($deny | Where-Object { $_ -match '\.env' }).Count -gt 0)
 Assert-True 'private keys are denied'      (@($deny | Where-Object { $_ -match 'ssh' }).Count -gt 0)
 
-# --- Example 2: the hooks you rely on are actually wired -------------------
-# A hook present on disk is not a hook that fires. This is the assertion that
-# catches the gap between "I wrote a guardrail" and "the guardrail is installed".
+# --- Example 2: the hooks you rely on are wired AND present ----------------
+# A hook present on disk is not a hook that fires - and a hook wired in settings is
+# not a hook that exists. Both halves fail silently, so both are asserted: an earlier
+# version of this file only grepped for the string "PreToolUse", which passes on any
+# settings file where somebody typed the word once, including one whose hook scripts
+# were deleted months ago.
 $wired = ''
 if ($settings.PSObject.Properties.Name -contains 'hooks') {
     $wired = ($settings.hooks | ConvertTo-Json -Depth 10 -Compress)
 }
 Assert-True 'a PreToolUse hook is wired' ($wired -match 'PreToolUse')
+
+$missing = @()
+foreach ($hit in [regex]::Matches($wired, '-File\s+\\?["'']?([^"''\\]+(?:\\\\[^"''\\]+)*\.ps1)')) {
+    $candidate = $hit.Groups[1].Value -replace '\\\\', '\'
+    # Both spellings appear in real settings files and both are expanded by the host:
+    # "$env:USERPROFILE" and a bare "$USERPROFILE". Handling only the first produces a
+    # false positive on a hook that works perfectly well.
+    $expanded = [Environment]::ExpandEnvironmentVariables(($candidate -replace '\$(?:env:)?([A-Za-z_][A-Za-z0-9_]*)', '%$1%'))
+    if (-not (Test-Path -LiteralPath $expanded -PathType Leaf)) { $missing += $expanded }
+}
+Assert-True "every wired hook script exists on disk [$($missing -join '; ')]" ($missing.Count -eq 0)
 
 Write-Output ''
 Write-Output "PASS $script:Pass  FAIL $script:Fail"

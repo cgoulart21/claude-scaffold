@@ -94,6 +94,30 @@ Assert-True 'corrections README exists' ($corrections.Length -gt 0)
 Assert-True 'second-occurrence promotion is stated' ($corrections -match '(?i)second occurrence')
 Assert-True 'the control-byte sweep is documented'  ($corrections -match '0x0B|0x0C')
 
+# The format is taught in two documents and matched by a regex in a third. A fresh
+# reader found them disagreeing: the template taught a line with no leading dash while
+# the hook counted only lines that had one, so a log written exactly as documented
+# reported zero entries forever, silently. This binds the three together.
+$hookPath = Join-Path (Split-Path -Parent $CoreRoot) 'automation\hooks\session-start.ps1'
+if (Test-Path -LiteralPath $hookPath -PathType Leaf) {
+    $hookText = Get-Content -LiteralPath $hookPath -Raw -Encoding UTF8
+    $regexMatch = [regex]::Match($hookText, "match\s+'(\^- [^']+)'")
+    Assert-True 'the hook still counts log entries by a findable pattern' $regexMatch.Success
+
+    if ($regexMatch.Success) {
+        $pattern = $regexMatch.Groups[1].Value
+        $template = Get-Text 'corrections\log.md.template'
+        $examples = @($template -split "`r?`n" | Where-Object { $_ -match '^- \d{4}-\d{2}-\d{2}' })
+        Assert-True 'the template shows at least one example line' ($examples.Count -gt 0)
+        $allMatch = ($examples.Count -gt 0)
+        foreach ($example in $examples) { if ($example -notmatch $pattern) { $allMatch = $false } }
+        Assert-True 'every example in the template matches the hook pattern' $allMatch
+    }
+}
+else {
+    Assert-True 'the hook still counts log entries by a findable pattern (hook missing)' $false
+}
+
 $plan = Get-Text 'handoff\PLAN.md'
 foreach ($field in @('Status:', 'Updated:', 'Base:')) {
     Assert-True "checkpoint field present: $field" ($plan -match [regex]::Escape($field))

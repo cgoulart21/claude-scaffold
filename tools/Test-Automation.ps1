@@ -173,6 +173,11 @@ try {
     Set-Content -LiteralPath (Join-Path $box 'maintenance\updates-last-check') -Value (Get-Date -Format 'yyyy-MM-dd') -Encoding UTF8
     $output = Invoke-SessionStart -Arguments @{ MaintenanceRoot = (Join-Path $box 'maintenance') }
     Assert-True 'fresh markers say nothing' ([string]::IsNullOrWhiteSpace($output))
+
+    # A fresh install has no maintenance folder yet. Skipping quietly there means the
+    # block that exists to nag says nothing to the one person who needs it most.
+    $output = Invoke-SessionStart -Arguments @{ MaintenanceRoot = (Join-Path $box 'no-such-folder') }
+    Assert-True 'a missing maintenance folder warns rather than skipping' ($output -match '(?i)not found')
 }
 finally { Remove-Item -LiteralPath $box -Recurse -Force -ErrorAction SilentlyContinue }
 

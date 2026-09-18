@@ -69,7 +69,17 @@ function Get-MarkerAgeDays {
 }
 
 # --- Block 1: maintenance reminders ---------------------------------------
-if ($EnableMaintenanceReminders -and (Test-Path -LiteralPath $MaintenanceRoot -PathType Container)) {
+# Same rule as the other two blocks: an unconfigured block is silent, a configured one
+# that cannot find its target is loud. An earlier version simply skipped when the folder
+# was absent, which is what a fresh install looks like - so the block that exists to nag
+# said nothing, forever, to exactly the person who had not set it up yet.
+if ($EnableMaintenanceReminders -and -not [string]::IsNullOrEmpty($MaintenanceRoot) -and
+    -not (Test-Path -LiteralPath $MaintenanceRoot -PathType Container)) {
+    $messages += "WARNING: maintenance folder not found at $MaintenanceRoot. Create it and drop a date into last-run, or set EnableMaintenanceReminders to false in this hook."
+}
+
+if ($EnableMaintenanceReminders -and -not [string]::IsNullOrEmpty($MaintenanceRoot) -and
+    (Test-Path -LiteralPath $MaintenanceRoot -PathType Container)) {
 
     $weekly = Get-MarkerAgeDays (Join-Path $MaintenanceRoot 'last-run')
     if ($null -eq $weekly) {

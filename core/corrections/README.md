@@ -19,9 +19,15 @@ you were right not to make it a rule.
 ## The line
 
 ```
-YYYY-MM-DD - what I did - what they wanted
-YYYY-MM-DD - what I assumed - what was actually true
+- YYYY-MM-DD - what I did - what they wanted
+- YYYY-MM-DD - what I assumed - what was actually true
 ```
+
+**Keep the leading `- `.** The session-start hook counts entries with
+`^- \d{4}-\d{2}-\d{2} `, and a log written without it matches nothing - the counter goes
+quiet and never says why. A format taught in prose and matched by a regex is two sources
+for one contract, which is family 5; `tools/Test-CoreTemplates.ps1` now asserts that the
+example here actually matches the pattern there.
 
 The first form is a correction from the person you work with. The second is a technical
 gotcha you found on your own. Both belong here: a gotcha that bites twice in two different
