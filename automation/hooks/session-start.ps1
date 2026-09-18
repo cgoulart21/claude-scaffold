@@ -81,12 +81,15 @@ if ($EnableMaintenanceReminders -and -not [string]::IsNullOrEmpty($MaintenanceRo
 if ($EnableMaintenanceReminders -and -not [string]::IsNullOrEmpty($MaintenanceRoot) -and
     (Test-Path -LiteralPath $MaintenanceRoot -PathType Container)) {
 
+    # Name the routine's file rather than "your weekly routine": a reminder that points at
+    # something undefined trains the reader to dismiss it.
+    $routine = Join-Path $MaintenanceRoot 'weekly-routine.md'
     $weekly = Get-MarkerAgeDays (Join-Path $MaintenanceRoot 'last-run')
     if ($null -eq $weekly) {
-        $messages += "REMINDER: weekly maintenance has no readable marker (maintenance/last-run). Run your weekly routine when convenient and write today's date into it."
+        $messages += "REMINDER: weekly maintenance has no readable marker (maintenance/last-run). Run $routine when convenient and write today's date into the marker."
     }
     elseif ($weekly -ge $WeeklyOverdueDays) {
-        $messages += "REMINDER: weekly maintenance is overdue (last run $weekly days ago). Run the routine and write today's date into maintenance/last-run. Skip if the user is mid-task."
+        $messages += "REMINDER: weekly maintenance is overdue (last run $weekly days ago). Run $routine, then write today's date into maintenance/last-run. Skip if the user is mid-task."
     }
 
     $updates = Get-MarkerAgeDays (Join-Path $MaintenanceRoot 'updates-last-check')

@@ -124,10 +124,16 @@ Deploy in this order, because each one is referenced by the next:
    `review-before-commit.ps1`** - both have one - to point at the lessons file, memory index
    and corrections log from Phase 1. Leave a path empty to switch that block off; a path
    that is set but does not resolve produces a warning, which is deliberate.
-3. Deploy `automation/maintenance/check-updates.ps1` and `backup-config.ps1` into
-   `<AGENT-HOME>/maintenance/`, and fill in `backup-config.ps1`'s two configuration values
-   with the private backup repository from Phase 0. Create the folder itself: the
-   session-start hook warns when it is missing, and on a fresh install it always is.
+3. Deploy `automation/maintenance/` into `<MAINTENANCE-DIR>` - both scripts **and**
+   `weekly-routine.md`, which is what the session-start hook names when the weekly marker
+   goes overdue. Delete the routine's steps whose subsystem they declined. Fill in
+   `backup-config.ps1`'s two configuration values with the private backup repository from
+   Phase 0. Create the folder itself: the hook warns when it is missing, and on a fresh
+   install it always is.
+
+   Do not skip the routine because it looks like documentation. The corrections log has no
+   periodic reader without it, and a log nobody reads never produces a second occurrence -
+   which disables the promotion rule that `core/` is built around.
 4. Choose a maintenance trigger using `automation/triggers.md`. **Run the detection test
    for their host** rather than assuming - two of the three paths fail silently on the
    wrong machine, and a silent failure here means maintenance that never runs and never
@@ -135,13 +141,15 @@ Deploy in this order, because each one is referenced by the next:
 5. `automation/verification/` - copy `Assert-Baseline.ps1` with its example assertions
    replaced by their decisions, and set up the secret scanner.
 
-   **The scanner needs a binary this repository does not ship and cannot install for you.**
-   Get the official release for their platform, verify its checksum, and put it where
-   `Invoke-Gitleaks.ps1` expects it or pass `-GitleaksPath`. Then call the wrapper from a
-   `pre-commit` hook in each repository they want scanned - there is no hook template here,
-   because a pre-commit hook is a few lines and writing it for their layout beats shipping
-   one that assumes it. If you cannot complete this step, **say so in the Phase 5 summary**
-   rather than leaving a wrapper that exits 2 forever.
+   **The scanner needs a binary this repository does not ship.** `stack/manifest.md`
+   section 6 has the version, the URL and the checksum step - follow it, then put the
+   binary where `Invoke-Gitleaks.ps1` expects it or pass `-GitleaksPath`. Call the wrapper
+   from a `pre-commit` hook in each repository they want scanned, and **pin the version in
+   that hook so it refuses a different one**; there is no hook template here because it is
+   a few lines and writing it for their layout beats shipping one that assumes it.
+
+   If you cannot complete this step, **say so in the Phase 5 summary** rather than leaving
+   a wrapper that exits 2 forever and a person who believes they have a secret scanner.
 
 ## Phase 3 - `stack/` (if B)
 

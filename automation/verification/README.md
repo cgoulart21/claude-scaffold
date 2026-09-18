@@ -63,6 +63,18 @@ Good candidates, once you have made the decisions:
 Keep the suite small enough that you actually read the failures. A baseline with two hundred
 assertions and one recurring red line trains you to ignore the red line.
 
+## The binary is not here, and that is deliberate
+
+`Invoke-Gitleaks.ps1` wraps a scanner this folder does not ship. The **install** - version,
+URL, checksum step - is in `stack/manifest.md`, section 6, because a version number is
+inventory and ages, while the wrapper and the exit-code contract are method and do not. Put
+the install command here and this folder acquires a number that will be wrong within
+months, in the one place that promises not to have any.
+
+Pin the version in whatever calls the wrapper, and **refuse a different one** rather than
+scanning anyway. A scanner you did not pin is a scanner whose findings you did not define,
+and "green" from an unknown version is the most expensive kind of green.
+
 ## Running them
 
 ```powershell

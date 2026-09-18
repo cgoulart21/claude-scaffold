@@ -49,6 +49,18 @@ $manifest = Get-Text 'stack\manifest.md'
 Assert-True 'manifest exists' ($manifest.Length -gt 0)
 Assert-True 'manifest carries install commands' ($manifest -match '(?i)install')
 
+# The routing rule, made checkable: a version number and a URL are inventory and belong
+# here, while the wrapper that uses them is method and lives in automation/. If the
+# install command ever migrates into automation/, that folder acquires a number that ages
+# in the one place that promises not to have any.
+Assert-True 'the scanner install lives in stack, with a version' ($manifest -match '(?i)gitleaks' -and $manifest -match '\b8\.\d+\.\d+\b')
+Assert-True 'the install names a release URL'   ($manifest -match 'github\.com/gitleaks/gitleaks/releases')
+Assert-True 'the checksum step is not optional' ($manifest -match '(?i)checksum')
+
+$verificationReadme = Get-Text 'automation\verification\README.md'
+Assert-True 'verification points at stack for the install rather than carrying it' ($verificationReadme -match '(?i)stack/manifest\.md')
+Assert-True 'automation/ carries no scanner version number' ($verificationReadme -notmatch '\b8\.\d+\.\d+\b')
+
 $domain = Get-Text 'stack\domain-tools.md'
 Assert-True 'domain tools doc exists' ($domain.Length -gt 0)
 Assert-True 'domain tools are declared as the author own choice' ($domain -match '(?i)yours will|your own')

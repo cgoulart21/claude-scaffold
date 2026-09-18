@@ -28,7 +28,9 @@ if ([string]::IsNullOrEmpty($RepositoryPath)) { $RepositoryPath = (Get-Location)
 
 if (-not (Test-Path -LiteralPath $GitleaksPath -PathType Leaf)) {
     Write-Output "ERROR gitleaks not found at $GitleaksPath"
-    Write-Output 'Install the official release binary and verify its checksum before trusting it.'
+    Write-Output 'Install it first: stack/manifest.md, section 6, has the version, the URL and'
+    Write-Output 'the checksum step. That lives in stack/ because a version number ages and this'
+    Write-Output 'folder does not.'
     exit 2
 }
 if (-not (Test-Path -LiteralPath (Join-Path $RepositoryPath '.git'))) {

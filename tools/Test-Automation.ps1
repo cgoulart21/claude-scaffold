@@ -212,6 +212,19 @@ foreach ($mode in @('DIVERGENCE', 'NETWORK', 'AUTHENTICATION', 'NOT CLASSIFIED')
     Assert-True "push failure mode classified: $mode" ($backup -match [regex]::Escape($mode))
 }
 
+$routine = Get-Text 'maintenance\weekly-routine.md'
+Assert-True 'the weekly routine is defined, not merely nagged about' ($routine.Length -gt 0)
+# Its reason for existing, which is stronger than "documentation was missing".
+Assert-True 'it states why it exists at all' ($routine -match '(?i)write-only|never fires')
+# Each step must say which subsystem entails it, so the reader can delete the rest.
+Assert-True 'steps are tied to the subsystems that entail them' (@([regex]::Matches($routine, '(?i)\(needs ')).Count -ge 4)
+Assert-True 'the marker is stamped last'   ($routine -match '(?i)stamp the marker')
+Assert-True 'could-not-run stays distinct from nothing-to-report' ($routine -match '(?i)could not (run|check)')
+
+# A reminder that points at something undefined trains the reader to dismiss it.
+$sessionStart = Get-Text 'hooks\session-start.ps1'
+Assert-True 'the hook names the routine file' ($sessionStart -match 'weekly-routine\.md')
+
 $updates = Get-Text 'maintenance\check-updates.ps1'
 Assert-True 'update check exists' ($updates.Length -gt 0)
 Assert-True 'the update check applies nothing' ($updates -match '(?i)nothing (was |is )?applied|read-only')
