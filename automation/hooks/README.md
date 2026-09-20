@@ -70,15 +70,15 @@ tool; `SessionStart` runs when a session opens, resumes, or restarts after compa
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "shell": "powershell", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE/.claude/hooks/block-dangerous-git.ps1\"" },
-          { "type": "command", "shell": "powershell", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE/.claude/hooks/review-before-commit.ps1\"" }
+          { "type": "command", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$USERPROFILE/.claude/hooks/block-dangerous-git.ps1\"" },
+          { "type": "command", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$USERPROFILE/.claude/hooks/review-before-commit.ps1\"" }
         ]
       }
     ],
     "SessionStart": [
       {
         "hooks": [
-          { "type": "command", "shell": "powershell", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE/.claude/hooks/session-start.ps1\"", "timeout": 15 }
+          { "type": "command", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$USERPROFILE/.claude/hooks/session-start.ps1\"", "timeout": 15 }
         ]
       }
     ]
@@ -86,13 +86,22 @@ tool; `SessionStart` runs when a session opens, resumes, or restarts after compa
 }
 ```
 
-**`"shell": "powershell"` is not decoration.** On Windows the host runs a hook command in
-`bash` when Git Bash is installed and in `powershell` only when it is not. In bash,
-`$env:USERPROFILE` expands to `:USERPROFILE`, the `-File` path does not resolve, and a
-`PreToolUse` guard that fails to start does not block: the door is open with no warning.
-Declaring the shell makes the command mean the same thing on every machine. (Writing
-`$USERPROFILE` instead would work in bash and break in powershell - the opposite trap.)
-Until 2026-09-20 this example had no `shell` key; a second machine measured the expansion.
+**The variable must match the shell, and the shell is bash.** On Windows the host runs a
+hook command in `bash` when Git Bash is installed and in `powershell` only when it is not.
+The two spellings of the profile path each resolve under exactly one shell: in bash
+`$USERPROFILE` resolves (Git Bash imports the Windows environment) while `$env:USERPROFILE`
+becomes the literal `:USERPROFILE`; in PowerShell it is the reverse. So the pairing is what
+matters, never either half alone - and a `PreToolUse` guard whose path does not resolve does
+not start, and a guard that does not start does not block, with no warning.
+
+Use `$USERPROFILE` with the **default** shell, as above: wherever there is a Bash tool to
+guard, Git Bash exists to run the hook, so this pairing works on every machine that has
+something to protect. `"shell": "powershell"` with `$env:USERPROFILE` also works - but only
+where the host's PowerShell-7 detection and fallback do, and a second machine measured that
+routing *failing* on 2026-09-20 while the bash form held. Two earlier versions of this
+example were each half-right: one used `$env:USERPROFILE` under no shell (works under
+neither), the next added `"shell": "powershell"` (works only where PowerShell routing does).
+The bash pairing depends on nothing the Bash tool has not already required.
 
 Repeat the `PreToolUse` block for every tool name that can run a shell command - on this
 stack that means `Bash` and `PowerShell`. A guard wired to one of them and not the other is

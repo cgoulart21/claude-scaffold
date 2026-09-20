@@ -284,6 +284,14 @@ foreach ($name in @('Invoke-Gitleaks.ps1', 'Assert-Baseline.ps1', 'Assert-NoCont
     }
 }
 
+# The gitleaks binary is not in CI, so the exit-code mapping is asserted on the source:
+# gitleaks exits 1 for both a finding and a config failure, so the wrapper must split them
+# with --exit-code 3 and never read a bare 1 as a finding. Measured on 2026-09-20.
+$gitleaks = ((Get-Text 'verification\Invoke-Gitleaks.ps1') -replace '\s', '')
+Assert-True 'gitleaks wrapper passes --exit-code 3' ($gitleaks -match "'--exit-code','3'")
+Assert-True 'gitleaks wrapper treats exit 3 as the finding' ($gitleaks -match '\$code-eq3')
+Assert-True 'gitleaks wrapper never treats a bare exit 1 as a finding' (-not ($gitleaks -match '\$code-eq1'))
+
 Write-Output 'Group 6 - the vault schema ships empty'
 
 $vaultRoot = Join-Path (Split-Path -Parent $AutomationRoot) 'vault'

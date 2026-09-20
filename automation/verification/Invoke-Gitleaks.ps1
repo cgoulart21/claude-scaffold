@@ -42,7 +42,13 @@ if (-not (Test-Path -LiteralPath (Join-Path $RepositoryPath '.git'))) {
 # deprecated since 8.19 (hidden from --help, still accepted) and a future bump removes it;
 # with 8.30.1 pinned this wrapper would then exit 126 on every commit. The repository is a
 # positional argument here, not --source. Changed 2026-09-20 after a second machine's audit.
-$arguments = @('git', '--pre-commit', '--staged', '--no-banner', '--redact', $RepositoryPath)
+# --exit-code 3 is not optional. gitleaks exits 1 for BOTH a finding and a failure to run
+# (a config that will not load, a bad flag). Mapping 1 -> "findings" reports a scanner that
+# never ran as a secret found - the worse half of family 2, a well-formed finding pointing
+# at nothing. With --exit-code 3 a real finding is 3, and everything that is not 0 or 3 -
+# including the config-load failure that still exits 1 - is "could not run". Measured
+# against the pinned 8.30.1 on 2026-09-20, after a second machine's audit.
+$arguments = @('git', '--pre-commit', '--staged', '--no-banner', '--redact', '--exit-code', '3', $RepositoryPath)
 if (-not [string]::IsNullOrEmpty($ConfigPath) -and (Test-Path -LiteralPath $ConfigPath)) {
     $arguments += @('--config', $ConfigPath)
 }
@@ -62,12 +68,14 @@ if ($code -eq 0) {
     Write-Output 'gitleaks: no findings in the staged changes.'
     exit 0
 }
-if ($code -eq 1) {
+if ($code -eq 3) {
     Write-Output 'gitleaks: FINDINGS in the staged changes. Values are redacted below.'
     Write-Output ($output -join [Environment]::NewLine)
     exit 1
 }
 
+# Everything else - including a bare 1 from a config that would not load - is "could not
+# run", never a finding.
 Write-Output "gitleaks: could not run (exit $code). This is not a clean result."
 Write-Output ($output -join [Environment]::NewLine)
 exit 2

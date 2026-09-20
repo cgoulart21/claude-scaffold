@@ -38,6 +38,13 @@ reporting success from a machine where it has not worked in months.
 So: never `exit 0` on an error path. If the tool is missing, that is `2`. If the config
 cannot be parsed, that is `2`. Say which surface you actually exercised.
 
+This is not hypothetical for the secret scanner. gitleaks exits `1` for **both** a finding
+and a failure to run - a config that will not load, a bad flag - so a wrapper that maps `1`
+to "findings" reports a scanner that never ran as a secret found, the worse half of family
+2. `Invoke-Gitleaks.ps1` passes `--exit-code 3`, so a real finding is `3` and everything
+that is not `0` or `3` (including that bare `1`) is `2`, could not run. A second machine
+measured this against the pinned version on 2026-09-20.
+
 ## The escapes that corrupt without a warning
 
 A class worth a gate of its own, because every part of it is silent.

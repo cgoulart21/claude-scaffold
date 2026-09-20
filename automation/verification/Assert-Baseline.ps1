@@ -84,25 +84,32 @@ foreach ($hit in [regex]::Matches($wired, '-File\s+\\?["'']?([^"''\\]+(?:\\\\[^"
 }
 Assert-True "every wired hook script exists on disk [$($missing -join '; ')]" ($missing.Count -eq 0)
 
-# A hook whose command says "$env:..." is a PowerShell command. On Windows the host runs
-# hook commands in bash when Git Bash is installed, and bash expands "$env:USERPROFILE"
-# to ":USERPROFILE" - the file does not resolve, the hook does not start, and a guard
-# that does not start does not block. Declaring "shell": "powershell" on the entry is
-# what makes the command mean the same thing on every machine. Measured on a second
-# machine on 2026-09-20; the public wiring example lacked the key until then.
-$undeclared = @()
+# A hook that invokes -File "<var>/..." must pair the profile variable with the shell it
+# runs under, or the path does not resolve, the hook does not start, and a guard that does
+# not start does not block. Each spelling works under exactly one shell:
+#   $env:USERPROFILE -> PowerShell only (bash makes it ":USERPROFILE")
+#   $USERPROFILE     -> bash only       (PowerShell makes it empty)
+# The host runs a hook in bash when Git Bash is installed, powershell otherwise, unless
+# "shell" says which. So $env: requires shell "powershell"; a bare $USERPROFILE requires
+# NOT shell "powershell". Measured on two machines on 2026-09-20 - the second found the
+# powershell routing itself failing, which is why the recommended pairing is the bash one.
+# The two spellings are disjoint in text: "$env:USERPROFILE" has no "$USERPROFILE" in it.
+$mispaired = @()
 if ($settings.PSObject.Properties.Name -contains 'hooks') {
     foreach ($eventName in $settings.hooks.PSObject.Properties.Name) {
         foreach ($group in @($settings.hooks.$eventName)) {
             foreach ($entry in @($group.hooks)) {
                 $cmd = [string]$entry.command
-                $hasShell = ($entry.PSObject.Properties.Name -contains 'shell') -and -not [string]::IsNullOrEmpty([string]$entry.shell)
-                if ($cmd -match '\$env:' -and -not $hasShell) { $undeclared += "$eventName" }
+                $isPwsh   = ($entry.PSObject.Properties.Name -contains 'shell') -and ([string]$entry.shell -eq 'powershell')
+                $usesEnv  = $cmd -match '\$env:USERPROFILE'
+                $usesBare = $cmd -match '\$USERPROFILE'
+                if ($usesEnv -and -not $isPwsh) { $mispaired += "$eventName (`$env:USERPROFILE needs shell powershell)" }
+                if ($usesBare -and $isPwsh)     { $mispaired += "$eventName (`$USERPROFILE breaks under shell powershell)" }
             }
         }
     }
 }
-Assert-True "every hook that uses `$env: declares its shell [$($undeclared -join '; ')]" ($undeclared.Count -eq 0)
+Assert-True "every hook pairs its USERPROFILE spelling with its shell [$($mispaired -join '; ')]" ($mispaired.Count -eq 0)
 
 Write-Output ''
 Write-Output "PASS $script:Pass  FAIL $script:Fail"
