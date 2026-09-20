@@ -91,6 +91,36 @@ The same principle applies to repair. **A repair that runs without changing the 
 did not repair anything** - it is the `2` case wearing a `0` costume. Hash before, hash
 after, and compare.
 
+### When the snapshot is a re-serialisation, capture it in canonical form
+
+A snapshot that strips keys, or re-serialises the source for any other reason, no longer
+promises byte equality with the source - it promises **semantic** equality, while the
+invariant above still holds: the bytes written are the bytes validated. Re-serialising
+opens a second gap. Tools rewrite their own config files with a different key order on
+every machine, so a snapshot that preserves the source order flips between machines while
+nothing changed. The fix is a canonical form, on the capture side only: keys of **every**
+object sorted by ordinal comparison (not the machine's culture), at every level including
+the top; **arrays never reordered**, because their order is meaning (permission rules,
+hook sequences); scalars untouched. Same content, same bytes, whichever machine captured
+it. The restore direction stays out of it: reformatting the user's live file is not the
+restore's job.
+
+Canonicalising changes what the post-write check can promise, and the check has to change
+with it. Compact-JSON equality is order-sensitive and would now fail by design. The
+replacement compares the **set** of keys in every object, the **length and order** of
+every array, and the value of every leaf, naming the first path that differs - and it
+must not reuse the canonicaliser to do so, because a comparer that shares code with the
+transformation it verifies agrees with it by construction (lesson 3). Prove the check
+with sabotage: mutate a copy of the installer so it drops a nested key, reorders an
+array, unrolls a one-element array, or lets the canonical form leak into the path that
+was promised to stay unchanged, and assert that the check dies naming the path. Two
+platform traps make those mutations realistic rather than theoretical: a PowerShell
+function returning an array unrolls it unless the return is wrapped in the comma
+operator, so a one-element array becomes the element and an empty one becomes `$null`;
+and enumerating the property names of an empty object yields `$null`, which `@()` turns
+into a one-element array with no name. A check that survives its own sabotage is not
+checking.
+
 ## `Assert-Baseline.ps1` is a starting point, not a suite
 
 It ships three example assertions. They are deliberately generic, and you should replace
