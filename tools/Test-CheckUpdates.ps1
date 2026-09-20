@@ -216,6 +216,9 @@ try {
     Assert-True 'exit 1' ($r.Exit -eq 1) "exit [$($r.Exit)]; $($r.Out)"
     Assert-True 'a newer catalogue version is an UPDATE naming both versions' ($report -match '- alpha@mp : 1\.0\.0 \(disabled\) -> \*\*1\.1\.0\*\*  \[UPDATE\]') $report
     Assert-True 'a moved pinned commit is an UPDATE naming both commits' ($report -match '- beta@mp : 2\.0\.0  commit a1a1a1a -> \*\*b2b2b2b\*\*  \[UPDATE\]') $report
+    # Measured 2026-09-20: the CLI's update command compares version strings only, so a pin
+    # that moved behind an unchanged version is "already at the latest version" to it.
+    Assert-True 'and says how to take it, since plugin update compares version strings only' ($report -match 'uninstall, then install') $report
     Assert-True 'a plugin the catalogue dropped is a finding, not silence' ($report -match '- gamma@mp : 3\.0\.0  NOT IN CATALOGUE') $report
     Assert-True 'a plugin whose marketplace is gone is a finding, not silence' ($report -match "- delta@other : 4\.0\.0  MARKETPLACE 'other' IS NOT CONFIGURED") $report
     Assert-True 'the counts separate updates from other findings' ($r.Out -match 'Updates available: 2' -and $r.Out -match 'Other findings: 2' -and $r.Out -match 'Could not check: 0') $r.Out

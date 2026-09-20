@@ -14,7 +14,10 @@
   - Agent plugins. The agent's own CLI lists what is installed and where each
     marketplace lives; every installed plugin is then compared with its catalogue
     on disk - by version when the catalogue declares one, by pinned commit when it
-    declares only that. The one write outside the report folder is the catalogue
+    declares only that. A pin that moved behind an unchanged version string is still
+    reported as an update, and the report says how to take it, because the CLI's own
+    update command compares version strings only (measured 2026-09-20). The one write
+    outside the report folder is the catalogue
     refresh, done through the CLI's own command so that the comparison is against
     today's catalogue and not the copy cached at install time. With
     -SkipMarketplaceRefresh the cached copy is used, and the report says so.
@@ -406,7 +409,7 @@ else {
                     Add-Line "$label  (current; no version in the catalogue, compared by pinned commit $(Get-ShortCommit $pinned))"
                 }
                 else {
-                    Add-Update "$label  commit $(Get-ShortCommit $installedCommit) -> **$(Get-ShortCommit $pinned)**  [UPDATE] - no version in the catalogue, compared by pinned commit"
+                    Add-Update "$label  commit $(Get-ShortCommit $installedCommit) -> **$(Get-ShortCommit $pinned)**  [UPDATE] - no version in the catalogue, compared by pinned commit; 'plugin update' answers up to date while the version string is unchanged, so take it with uninstall, then install (measured 2026-09-20)"
                 }
                 continue
             }
@@ -483,6 +486,10 @@ Add-Line ''
 Add-Line 'Plugins update one at a time, and the application has to be restarted afterwards:'
 Add-Line ''
 Add-Line '    <cli> plugin update <name>@<marketplace>'
+Add-Line ''
+Add-Line 'A moved pinned commit behind the same version string is not taken by that command:'
+Add-Line 'uninstall, then install, then disable again if the plugin was disabled - the install'
+Add-Line 'enables it and rewrites settings.json with the keys reordered.'
 Add-Line ''
 Add-Line 'On a sandboxed host the CLI is not on PATH: <cli> is the path printed under CLI above.'
 Add-Line ''
