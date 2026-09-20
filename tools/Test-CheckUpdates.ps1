@@ -4,13 +4,14 @@
   Suite for automation/maintenance/check-updates.ps1.
 
   Hermetic: the agent CLI is a .cmd stub that answers the three commands the script
-  issues from fixture files; catalogues, the installed record and the report live
-  under $env:TEMP; npm is a stub put first on PATH, or removed from it. Nothing here
-  reaches the network or the real agent home. Every state of the exit contract is
-  produced at least once, and the two defects the rewrite exists to name are
-  planted: a catalogue whose keys differ only by case, which the 5.1 JSON parser
-  rejects, and a comparison that used to be reported as "not comparable" when the
-  fact was "could not read".
+  issues from fixture files, with a configurable exit for each; catalogues, the
+  installed record and the report live under $env:TEMP; npm is a stub put first on
+  PATH, or removed from it. Nothing here reaches the network or the real agent home.
+  Every exit state, and every report branch the stub can reach, is produced at least
+  once, including the ones that must fail. The exception is the two "could not run"
+  branches that need an executable dying between two commands; they are named here
+  rather than faked. Three of the cases are the exit-class defects a reviewer found
+  on 2026-09-20 with the same kind of stub, kept as regressions.
 #>
 [CmdletBinding()]
 param([string]$ScriptPath)
@@ -21,7 +22,6 @@ if ([string]::IsNullOrEmpty($ScriptPath)) {
 }
 $script:Pass = 0
 $script:Fail = 0
-$script:Skip = 0
 $script:Temps = New-Object 'System.Collections.ArrayList'
 $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $Today = Get-Date -Format 'yyyy-MM-dd'
@@ -58,19 +58,24 @@ function Write-Json {
 }
 
 function New-AgentStub {
-    # A CLI that answers the three commands the script issues, from files.
-    param([string] $Box, [int] $RefreshExit)
+    # A CLI that answers the three commands the script issues, from files, each with
+    # its own exit code when a case needs the command to fail.
+    param([string] $Box, [int] $RefreshExit, [int] $MarketplaceListExit, [int] $PluginListExit)
     $path = Join-Path $Box 'agent-stub.cmd'
     $marketplaceList = Join-Path $Box 'marketplace-list.json'
     $pluginList = Join-Path $Box 'plugin-list.json'
     $refresh = 'exit 0'
     if ($RefreshExit -ne 0) { $refresh = "(echo stub: refresh failed, no network 1>&2 & exit $RefreshExit)" }
+    $marketplaces = '(type "' + $marketplaceList + '" & exit 0)'
+    if ($MarketplaceListExit -ne 0) { $marketplaces = "(echo stub: cannot list marketplaces 1>&2 & exit $MarketplaceListExit)" }
+    $plugins = '(type "' + $pluginList + '" & exit 0)'
+    if ($PluginListExit -ne 0) { $plugins = "(echo stub: cannot list plugins 1>&2 & exit $PluginListExit)" }
     $lines = @(
         '@echo off',
         'set "A=%~1 %~2 %~3 %~4"',
         ('if "%A%"=="plugin marketplace update " ' + $refresh),
-        ('if "%A%"=="plugin marketplace list --json" (type "' + $marketplaceList + '" & exit 0)'),
-        ('if "%A%"=="plugin list --json " (type "' + $pluginList + '" & exit 0)'),
+        ('if "%A%"=="plugin marketplace list --json" ' + $marketplaces),
+        ('if "%A%"=="plugin list --json " ' + $plugins),
         'echo stub: unexpected arguments %* 1>&2',
         'exit 9'
     )
@@ -79,10 +84,18 @@ function New-AgentStub {
 }
 
 function New-NpmStub {
+    # An npm that prints a fixed answer on stdout and exits as told.
     param([string] $Dir, [string] $Answer, [int] $Exit)
     New-Item -ItemType Directory -Path $Dir -Force | Out-Null
     Write-Text (Join-Path $Dir 'answer.json') $Answer
     Write-Text (Join-Path $Dir 'npm.cmd') ("@echo off`r`ntype """ + (Join-Path $Dir 'answer.json') + """`r`nexit $Exit`r`n")
+}
+
+function New-NpmStubBody {
+    # An npm with an arbitrary body, for the cases about what it does NOT print.
+    param([string] $Dir, [string] $Body)
+    New-Item -ItemType Directory -Path $Dir -Force | Out-Null
+    Write-Text (Join-Path $Dir 'npm.cmd') $Body
 }
 
 function New-Installed {
@@ -125,7 +138,11 @@ function New-Fixture {
         [string] $CatalogueText,
         [hashtable] $Record,
         [int] $RefreshExit = 0,
-        [switch] $NoMarketplace
+        [int] $MarketplaceListExit = 0,
+        [int] $PluginListExit = 0,
+        [string] $MarketplaceListText,
+        [switch] $NoMarketplace,
+        [switch] $NoInstallLocation
     )
     $box = New-Box
     $marketplaceDir = Join-Path $box 'marketplaces\mp'
@@ -133,17 +150,24 @@ function New-Fixture {
     $manifest = Join-Path $marketplaceDir '.claude-plugin\marketplace.json'
     if (-not [string]::IsNullOrEmpty($CatalogueText)) { Write-Text $manifest $CatalogueText }
     elseif ($null -ne $Catalogue) { Write-Json $manifest $Catalogue }
-    $marketplaces = @()
-    if (-not $NoMarketplace) {
-        $marketplaces = @(@{ name = 'mp'; source = 'github'; repo = 'example/mp'; installLocation = $marketplaceDir })
+    if (-not [string]::IsNullOrEmpty($MarketplaceListText)) {
+        Write-Text (Join-Path $box 'marketplace-list.json') $MarketplaceListText
     }
-    Write-Json (Join-Path $box 'marketplace-list.json') $marketplaces
+    else {
+        $marketplaces = @()
+        if (-not $NoMarketplace) {
+            $entry = @{ name = 'mp'; source = 'github'; repo = 'example/mp' }
+            if (-not $NoInstallLocation) { $entry['installLocation'] = $marketplaceDir }
+            $marketplaces = @($entry)
+        }
+        Write-Json (Join-Path $box 'marketplace-list.json') $marketplaces
+    }
     Write-Json (Join-Path $box 'plugin-list.json') @($Installed)
     New-Item -ItemType Directory -Path (Join-Path $box 'plugins') -Force | Out-Null
     if ($null -ne $Record) { Write-Json (Join-Path $box 'plugins\installed_plugins.json') $Record }
     return [pscustomobject]@{
         Box     = $box
-        Stub    = (New-AgentStub -Box $box -RefreshExit $RefreshExit)
+        Stub    = (New-AgentStub -Box $box -RefreshExit $RefreshExit -MarketplaceListExit $MarketplaceListExit -PluginListExit $PluginListExit)
         Plugins = (Join-Path $box 'plugins')
         Reports = (Join-Path $box 'reports')
     }
@@ -207,8 +231,17 @@ try {
     $r = Invoke-Check (Get-StandardArgs $f)
     Assert-True 'no plugins installed: exit 0, and said so' ($r.Exit -eq 0 -and (Get-Report $f) -match 'no plugins are installed') $r.Out
 
+    # The refresh is the one write outside the report folder; the switch must keep the
+    # command from being issued at all, so the stub's refresh is made to fail here.
+    $f = New-Fixture -Installed @((New-Installed 'alpha@mp' '1.0.0')) -Catalogue (New-Catalogue @((New-VersionedEntry 'alpha' '1.0.0'))) -RefreshExit 1
+    $r = Invoke-Check ((Get-StandardArgs $f) + '-SkipMarketplaceRefresh')
+    $report = Get-Report $f
+    Assert-True '-SkipMarketplaceRefresh: exit 0 although the stub refresh would fail' ($r.Exit -eq 0) "exit [$($r.Exit)]; $($r.Out)"
+    Assert-True 'the report says the catalogues were not refreshed, on request' ($report -match 'not refreshed, on request \(-SkipMarketplaceRefresh\)') $report
+    Assert-True 'and the refresh command was never issued' ($report -cnotmatch 'COULD NOT REFRESH' -and $report -notmatch 'catalogues: refreshed') $report
+
     Write-Output 'Group 2 - state 1: findings, each printed with what to decide'
-    $f = New-Fixture -Installed @((New-Installed 'alpha@mp' '1.0.0' $false), (New-Installed 'beta@mp' '2.0.0'), (New-Installed 'gamma@mp' '3.0.0'), (New-Installed 'delta@other' '4.0.0')) `
+    $f = New-Fixture -Installed @((New-Installed 'alpha@mp' '1.0.0' $false), (New-Installed 'beta@mp' '2.0.0'), (New-Installed 'gamma@mp' '3.0.0'), (New-Installed 'delta@other' '4.0.0'), (New-Installed 'orphan' '5.0.0')) `
                      -Catalogue (New-Catalogue @((New-VersionedEntry 'alpha' '1.1.0'), (New-PinnedEntry 'beta' $CommitB))) `
                      -Record (New-Record @{ 'beta@mp' = $CommitA })
     $r = Invoke-Check (Get-StandardArgs $f)
@@ -221,7 +254,8 @@ try {
     Assert-True 'and says how to take it, since plugin update compares version strings only' ($report -match 'uninstall, then install') $report
     Assert-True 'a plugin the catalogue dropped is a finding, not silence' ($report -match '- gamma@mp : 3\.0\.0  NOT IN CATALOGUE') $report
     Assert-True 'a plugin whose marketplace is gone is a finding, not silence' ($report -match "- delta@other : 4\.0\.0  MARKETPLACE 'other' IS NOT CONFIGURED") $report
-    Assert-True 'the counts separate updates from other findings' ($r.Out -match 'Updates available: 2' -and $r.Out -match 'Other findings: 2' -and $r.Out -match 'Could not check: 0') $r.Out
+    Assert-True 'an id that names no marketplace is a finding, not silence' ($report -match '- orphan : 5\.0\.0  NOT ATTRIBUTABLE') $report
+    Assert-True 'the counts separate updates from other findings' ($r.Out -match 'Updates available: 2' -and $r.Out -match 'Other findings: 3' -and $r.Out -match 'Could not check: 0') $r.Out
 
     Write-Output 'Group 3 - state 2: could not check, never 0 and never 1'
     $f = New-Fixture -Installed @((New-Installed 'alpha@mp' '1.0.0')) -Catalogue (New-Catalogue @((New-VersionedEntry 'alpha' '1.0.0')))
@@ -239,10 +273,28 @@ try {
     Assert-True 'names the failure with the CLI complaint' ($report -match 'COULD NOT REFRESH the catalogues \(exit 1\): stub: refresh failed') $report
     Assert-True 'and still compares against the cached copies' ($report -match '- alpha@mp : 1\.0\.0  \(current\)') $report
 
+    $f = New-Fixture -Installed @((New-Installed 'alpha@mp' '1.0.0')) -Catalogue (New-Catalogue @((New-VersionedEntry 'alpha' '1.0.0'))) -MarketplaceListExit 1
+    $r = Invoke-Check (Get-StandardArgs $f)
+    $report = Get-Report $f
+    Assert-True 'a marketplace list that fails exits 2, naming the complaint' ($r.Exit -eq 2 -and $report -match 'COULD NOT LIST the marketplaces \(exit 1\): stub: cannot list marketplaces') "exit [$($r.Exit)]; $report"
+    Assert-True 'and every plugin is could-not-compare, not dropped' ($report -match '- alpha@mp : 1\.0\.0  COULD NOT COMPARE - the marketplace list was not available') $report
+
+    $f = New-Fixture -Installed @((New-Installed 'alpha@mp' '1.0.0')) -Catalogue (New-Catalogue @((New-VersionedEntry 'alpha' '1.0.0'))) -MarketplaceListText 'not json at all'
+    $r = Invoke-Check (Get-StandardArgs $f)
+    Assert-True 'an unreadable marketplace list exits 2 and says so' ($r.Exit -eq 2 -and (Get-Report $f) -match 'COULD NOT READ the marketplace list') $r.Out
+
+    $f = New-Fixture -Installed @((New-Installed 'alpha@mp' '1.0.0')) -Catalogue (New-Catalogue @((New-VersionedEntry 'alpha' '1.0.0'))) -PluginListExit 1
+    $r = Invoke-Check (Get-StandardArgs $f)
+    Assert-True 'an installed list that fails exits 2, naming the complaint' ($r.Exit -eq 2 -and (Get-Report $f) -match 'COULD NOT LIST the installed plugins \(exit 1\): stub: cannot list plugins') $r.Out
+
     $f = New-Fixture -Installed @((New-Installed 'alpha@mp' '1.0.0')) -Catalogue (New-Catalogue @((New-VersionedEntry 'alpha' '1.0.0')))
     Write-Text (Join-Path $f.Box 'plugin-list.json') 'this is not json'
     $r = Invoke-Check (Get-StandardArgs $f)
     Assert-True 'an unreadable installed list exits 2 and says so' ($r.Exit -eq 2 -and (Get-Report $f) -match 'COULD NOT READ the installed list') $r.Out
+
+    $f = New-Fixture -Installed @((New-Installed 'alpha@mp' '1.0.0')) -Catalogue (New-Catalogue @((New-VersionedEntry 'alpha' '1.0.0'))) -NoInstallLocation
+    $r = Invoke-Check (Get-StandardArgs $f)
+    Assert-True 'a marketplace without an install location is could-not-compare (exit 2)' ($r.Exit -eq 2 -and (Get-Report $f) -match "COULD NOT COMPARE - the catalogue of 'mp' is unreadable: the marketplace list gives no install location") $r.Out
 
     $f = New-Fixture -Installed @((New-Installed 'alpha@mp' '1.0.0'), (New-Installed 'beta@mp' '2.0.0')) `
                      -Catalogue (New-Catalogue @((New-VersionedEntry 'alpha' '1.0.0'), (New-PinnedEntry 'beta' $CommitB)))
@@ -260,12 +312,28 @@ try {
     $r = Invoke-Check (Get-StandardArgs $f)
     Assert-True 'a truncated catalogue exits 2 as unreadable, for either parser' ($r.Exit -eq 2 -and (Get-Report $f) -match "COULD NOT COMPARE - the catalogue of 'mp' is unreadable: not valid JSON for either parser") $r.Out
 
+    # Reviewer's case, 2026-09-20: a catalogue with no plugins section used to be walked
+    # once with a null candidate and reported as "the marketplace dropped the plugin".
+    $f = New-Fixture -Installed @((New-Installed 'alpha@mp' '1.0.0')) -CatalogueText '{"name":"mp","owner":{"name":"x"}}'
+    $r = Invoke-Check (Get-StandardArgs $f)
+    $report = Get-Report $f
+    Assert-True 'a catalogue with no plugins section is could-not-compare (exit 2)' ($r.Exit -eq 2 -and $report -match "COULD NOT COMPARE - the catalogue of 'mp' has no plugins section") "exit [$($r.Exit)]; $report"
+    Assert-True 'and never a dropped plugin' ($report -cnotmatch 'NOT IN CATALOGUE') $report
+
     $f = New-Fixture -Installed @((New-Installed 'alpha@mp' '1.0.0'), (New-Installed 'beta@mp' '2.0.0')) `
                      -Catalogue (New-Catalogue @((New-VersionedEntry 'alpha' '1.1.0'), (New-PinnedEntry 'beta' $CommitB)))
     $r = Invoke-Check (Get-StandardArgs $f)
     $report = Get-Report $f
     Assert-True 'an update next to a could-not-check exits 2, not 1' ($r.Exit -eq 2) "exit [$($r.Exit)]"
     Assert-True 'and the update is still printed and counted' ($report -match '- alpha@mp : 1\.0\.0 -> \*\*1\.1\.0\*\*  \[UPDATE\]' -and $r.Out -match 'Updates available: 1' -and $r.Out -match 'Could not check: 1') $r.Out
+
+    # The report itself cannot be written: a file sits where the folder would go.
+    $f = New-Fixture -Installed @((New-Installed 'alpha@mp' '1.0.0')) -Catalogue (New-Catalogue @((New-VersionedEntry 'alpha' '1.0.0')))
+    $blocked = Join-Path $f.Box 'blocked'
+    Write-Text $blocked 'a file where a folder is needed'
+    $r = Invoke-Check @('-ClaudeCli', $f.Stub, '-PluginsRoot', $f.Plugins, '-ReportRoot', (Join-Path $blocked 'reports'), '-SkipNpm')
+    Assert-True 'an unwritable report root exits 2' ($r.Exit -eq 2) "exit [$($r.Exit)]; $($r.Out)"
+    Assert-True 'and the report text goes to stdout with the reason' ($r.Out -match 'COULD NOT WRITE the report under' -and $r.Out -match '- alpha@mp : 1\.0\.0  \(current\)') $r.Out
 
     Write-Output 'Group 4 - a catalogue the 5.1 parser rejects is read, and garbage is still refused'
     $duplicateKeys = '{"name":"mp","plugins":[{"name":"alpha","version":"1.0.0","source":{"source":"url","url":"https://example.com/alpha.git"},"lspServers":{"languages":{".c":"c",".C":"cpp"}}}]}'
@@ -275,26 +343,34 @@ try {
     Assert-True 'keys differing only by case: exit 0' ($r.Exit -eq 0) "exit [$($r.Exit)]; $($r.Out)"
     # -cnotmatch: the report's own footer says "Could not check: 0", and -notmatch ignores case.
     Assert-True 'the plugin in that catalogue is compared, not "not comparable"' ($report -match '- alpha@mp : 1\.0\.0  \(current\)' -and $report -cnotmatch 'COULD NOT') $report
-    # Control: the host's own parser must reject that text, or the case above proved
-    # nothing about the fallback. Windows PowerShell 5.1 does; a newer engine may not.
-    $rejected = $false
-    try { $null = $duplicateKeys | ConvertFrom-Json -ErrorAction Stop } catch { $rejected = $true }
-    if ($rejected) { Assert-True 'control: this host rejects the planted text, so the fallback was exercised' $true }
-    else { $script:Skip++; Write-Output '  SKIP  this host accepts case-variant keys natively; the fallback was not exercised (skipped is not passed)' }
+    Assert-True 'the loss is named: which catalogue, how many keys' ($report -match "- note: the catalogue of 'mp' needed the fallback parser; 1 key\(s\) differing only by case dropped") $report
+    # Control, run in the same engine the script runs under: if that parser accepted the
+    # planted text, the case above would have proved nothing about the fallback.
+    $controlFile = Join-Path $f.Box 'duplicate-keys.json'
+    Write-Text $controlFile $duplicateKeys
+    $control = (& powershell -NoProfile -ExecutionPolicy Bypass -Command "try { `$null = [IO.File]::ReadAllText('$controlFile') | ConvertFrom-Json -ErrorAction Stop; 'accepted' } catch { 'rejected' }" 2>&1 | Out-String)
+    Assert-True 'control: the 5.1 engine that runs the script rejects the planted text' ($control -match 'rejected') $control
 
     Write-Output 'Group 5 - resolving the CLI on a sandboxed host'
     $f = New-Fixture -Installed @() -Catalogue (New-Catalogue @())
     $packages = Join-Path $f.Box 'Packages'
     foreach ($version in @('1.2.3', '1.10.0', 'not-a-version')) {
-        $folder = Join-Path $packages ('Vendor_abc\LocalCache\Roaming\Claude\claude-code\' + $version)
+        $folder = Join-Path $packages ('Claude_abc\LocalCache\Roaming\Claude\claude-code\' + $version)
         New-Item -ItemType Directory -Path $folder -Force | Out-Null
         [IO.File]::WriteAllBytes((Join-Path $folder 'claude.exe'), [byte[]]@())
     }
-    New-Item -ItemType Directory -Path (Join-Path $packages 'Other_xyz\LocalCache') -Force | Out-Null
+    # A decoy: another package with the same inner layout and a higher version must lose.
+    $decoy = Join-Path $packages 'Other_xyz\LocalCache\Roaming\Claude\claude-code\9.9.9'
+    New-Item -ItemType Directory -Path $decoy -Force | Out-Null
+    [IO.File]::WriteAllBytes((Join-Path $decoy 'claude.exe'), [byte[]]@())
     $r = Invoke-Check @('-PackageRoot', $packages, '-PluginsRoot', $f.Plugins, '-ReportRoot', $f.Reports, '-SkipNpm') $BarePath
     $report = Get-Report $f
-    Assert-True 'the highest version is chosen numerically, not lexically' ($report -match '- CLI: .*\\1\.10\.0\\claude\.exe \(found in the package cache') $report
+    Assert-True 'the highest version is chosen numerically, not lexically' ($report -match '- CLI: .*\\Claude_abc\\.*\\1\.10\.0\\claude\.exe \(found in the package cache') $report
+    Assert-True 'only the vendor package folders are searched' ($report -notmatch 'Other_xyz') $report
     Assert-True 'an executable that cannot start is could-not-check (exit 2), not an empty plugin list' ($r.Exit -eq 2 -and $report -match 'COULD NOT RUN the CLI' -and $report -notmatch 'no plugins are installed') $r.Out
+
+    $r = Invoke-Check @('-PackageRoot', $packages, '-PluginsRoot', $f.Plugins, '-ReportRoot', $f.Reports, '-SkipNpm', '-SkipMarketplaceRefresh') $BarePath
+    Assert-True 'with the refresh skipped, the listing is the first command and its failure to start is still exit 2' ($r.Exit -eq 2 -and (Get-Report $f) -match 'COULD NOT RUN the CLI') $r.Out
 
     $r = Invoke-Check @('-PackageRoot', (Join-Path $f.Box 'nowhere'), '-PluginsRoot', $f.Plugins, '-ReportRoot', $f.Reports, '-SkipNpm') $BarePath
     Assert-True 'no CLI anywhere exits 2 and says where it looked' ($r.Exit -eq 2 -and (Get-Report $f) -match 'COULD NOT CHECK: the agent CLI was not on PATH, and no package cache') $r.Out
@@ -313,10 +389,38 @@ try {
     $r = Invoke-Check (Get-StandardArgs $current -WithNpm) ($npmDir + ';' + $BarePath)
     Assert-True 'nothing outdated is current (exit 0)' ($r.Exit -eq 0 -and (Get-Report $current) -match 'everything current') $r.Out
 
+    $npmDir = Join-Path $current.Box 'npm-silent-ok'
+    New-NpmStubBody $npmDir "@echo off`r`nexit 0`r`n"
+    $r = Invoke-Check (Get-StandardArgs $current -WithNpm) ($npmDir + ';' + $BarePath)
+    Assert-True 'nothing on stdout with exit 0 is current (exit 0)' ($r.Exit -eq 0 -and (Get-Report $current) -match 'everything current') $r.Out
+
+    # Reviewer's case, 2026-09-20: npm that says nothing on stdout and fails used to read
+    # as "everything current" with exit 0 - the 0 on an error path the contract forbids.
+    $npmDir = Join-Path $current.Box 'npm-stderr-only'
+    New-NpmStubBody $npmDir "@echo off`r`necho npm ERR! node failed before json mode 1>&2`r`nexit 1`r`n"
+    $r = Invoke-Check (Get-StandardArgs $current -WithNpm) ($npmDir + ';' + $BarePath)
+    $report = Get-Report $current
+    Assert-True 'nothing on stdout with a non-zero exit is could-not-check (exit 2)' ($r.Exit -eq 2) "exit [$($r.Exit)]; $report"
+    Assert-True 'naming the exit and the first stderr line' ($report -match 'COULD NOT CHECK: npm exited 1 with nothing on stdout: npm ERR! node failed before json mode') $report
+
+    # Reviewer's case, 2026-09-20: a global package literally named "error" used to be read
+    # as a registry failure, retried, and its update swallowed.
+    $npmDir = Join-Path $current.Box 'npm-error-package'
+    New-NpmStub $npmDir '{"error":{"current":"1.0.0","wanted":"1.1.0","latest":"1.1.0","dependent":"global","location":"global"}}' 1
+    $r = Invoke-Check (Get-StandardArgs $current -WithNpm) ($npmDir + ';' + $BarePath)
+    $report = Get-Report $current
+    Assert-True 'a package named error is an UPDATE like any other (exit 1)' ($r.Exit -eq 1 -and $report -match '- error : 1\.0\.0 -> \*\*1\.1\.0\*\*  \[UPDATE\]') "exit [$($r.Exit)]; $report"
+    Assert-True 'and is not mistaken for a registry failure' ($report -cnotmatch 'answered an error') $report
+
     $npmDir = Join-Path $current.Box 'npm-error'
     New-NpmStub $npmDir '{"error":{"code":"E503","summary":"registry unavailable"}}' 1
     $r = Invoke-Check (Get-StandardArgs $current -WithNpm) ($npmDir + ';' + $BarePath)
     Assert-True 'a registry error twice is could-not-check (exit 2), naming the summary' ($r.Exit -eq 2 -and (Get-Report $current) -match 'COULD NOT CHECK: npm answered an error twice: registry unavailable') $r.Out
+
+    $npmDir = Join-Path $current.Box 'npm-garbage'
+    New-NpmStub $npmDir 'not json at all' 0
+    $r = Invoke-Check (Get-StandardArgs $current -WithNpm) ($npmDir + ';' + $BarePath)
+    Assert-True 'an unreadable npm answer is could-not-check (exit 2)' ($r.Exit -eq 2 -and (Get-Report $current) -match 'COULD NOT READ the answer of npm outdated') $r.Out
 
     $r = Invoke-Check (Get-StandardArgs $current -WithNpm) $BarePath
     Assert-True 'npm off the PATH is could-not-check (exit 2), not everything current' ($r.Exit -eq 2 -and (Get-Report $current) -match 'COULD NOT CHECK: npm is not on this PATH') $r.Out
@@ -326,7 +430,6 @@ finally {
 }
 
 Write-Output ''
-if ($script:Skip -gt 0) { Write-Output "($script:Skip check(s) skipped)" }
 Write-Output "PASS $script:Pass  FAIL $script:Fail"
 if ($script:Fail -gt 0) { exit 1 }
 exit 0

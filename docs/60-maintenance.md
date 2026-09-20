@@ -30,7 +30,10 @@ checked: the CLI not found, a catalogue unreadable, npm off the PATH. A partial 
 reported as `2` even when it also found an update, so that "could not check" never hides
 behind "nothing to do". On a sandboxed host the agent CLI is not on PATH; the script looks in
 the application's package cache before giving up, and the report says which of the two it
-used.
+used. The one thing the check writes outside its report folder is the marketplace catalogue
+cache, refreshed through the CLI so that the comparison is against today's catalogue rather
+than the copy from the last install; `-SkipMarketplaceRefresh` leaves it alone, and the report
+says so.
 
 ## The weekly routine reads the log, and that is the point
 

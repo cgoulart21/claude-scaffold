@@ -2,8 +2,12 @@
   check-updates.ps1
 
   READ-ONLY scan of what is installed versus what is available. It applies
-  NOTHING: it reads versions and writes a dated report. Applying an update stays
-  a deliberate act, taken while looking at the report.
+  NOTHING to what is installed: it reads versions and writes a dated report. The
+  one thing it writes outside that report folder is the marketplace catalogue
+  cache, refreshed through the CLI's own command so that the comparison is against
+  today's catalogue; -SkipMarketplaceRefresh leaves the cache alone and the report
+  says so. Applying an update stays a deliberate act, taken while looking at the
+  report.
 
   That separation is the whole design. An updater that both detects and applies
   will, sooner or later, apply something on a day you were not paying attention -
@@ -16,11 +20,8 @@
     on disk - by version when the catalogue declares one, by pinned commit when it
     declares only that. A pin that moved behind an unchanged version string is still
     reported as an update, and the report says how to take it, because the CLI's own
-    update command compares version strings only (measured 2026-09-20). The one write
-    outside the report folder is the catalogue
-    refresh, done through the CLI's own command so that the comparison is against
-    today's catalogue and not the copy cached at install time. With
-    -SkipMarketplaceRefresh the cached copy is used, and the report says so.
+    update command compares version strings only (measured 2026-09-20). The
+    catalogue refresh named above happens before the comparison.
   - Global npm packages, through `npm outdated -g --json`.
 
   Sandboxed host. A Store-packaged application keeps its CLI inside the package,
@@ -67,6 +68,8 @@ $script:lines    = @()
 $script:updates  = 0   # a newer version or commit is available
 $script:findings = 0   # something else the reader has to decide on
 $script:couldNot = 0   # a surface that was not exercised
+$script:fallbackParses = 0   # JSON texts the 5.1 parser refused and the .NET serializer read
+$script:droppedKeys    = 0   # keys differing only by case that the rebuild kept once
 
 function Add-Line     { param([string]$Text) $script:lines += $Text }
 function Add-Update   { param([string]$Text) $script:updates++;  $script:lines += $Text }
@@ -90,8 +93,10 @@ function ConvertTo-PSObjectTree {
     if ($Node -is [System.Collections.IDictionary]) {
         $object = New-Object PSObject
         foreach ($key in $Node.Keys) {
-            # PSObject property names are case-insensitive: the first spelling wins.
-            if ($null -ne $object.PSObject.Properties[$key]) { continue }
+            # PSObject property names are case-insensitive: the first spelling enumerated
+            # wins (a Dictionary's order is not contractual), and the loss is counted so
+            # that the report can name it instead of dropping keys in silence.
+            if ($null -ne $object.PSObject.Properties[$key]) { $script:droppedKeys++; continue }
             $object | Add-Member -MemberType NoteProperty -Name $key -Value (ConvertTo-PSObjectTree $Node[$key])
         }
         return $object
@@ -117,6 +122,7 @@ function ConvertFrom-JsonTolerant {
         $first = $_.Exception.Message
         try {
             Add-Type -AssemblyName System.Web.Extensions -ErrorAction Stop
+            $script:fallbackParses++
             $serializer = New-Object System.Web.Script.Serialization.JavaScriptSerializer
             $serializer.MaxJsonLength = [int]::MaxValue
             return ,(ConvertTo-PSObjectTree ($serializer.DeserializeObject($Text)))
@@ -195,11 +201,14 @@ function Resolve-Cli {
     }
     # Sandboxed host: the package keeps one folder per CLI version under its private,
     # redirected roaming folder. Layout as measured on a Store-packaged install in
-    # 2026-09; if the vendor moves it, pass -ClaudeCli.
+    # 2026-09; if the vendor moves it, pass -ClaudeCli. Only the vendor's package
+    # folders are searched - their name starts with the product name, and the publisher
+    # hash after the underscore is not hard-coded - because every package on the machine
+    # can write under this root, and the highest version anywhere is not the CLI.
     $best = $null
     $bestVersion = $null
     if (Test-Path -LiteralPath $PackageRoot -PathType Container) {
-        foreach ($package in @(Get-ChildItem -LiteralPath $PackageRoot -Directory -ErrorAction SilentlyContinue)) {
+        foreach ($package in @(Get-ChildItem -LiteralPath $PackageRoot -Directory -Filter 'Claude_*' -ErrorAction SilentlyContinue)) {
             $cliRoot = Join-Path $package.FullName 'LocalCache\Roaming\Claude\claude-code'
             if (-not (Test-Path -LiteralPath $cliRoot -PathType Container)) { continue }
             foreach ($folder in @(Get-ChildItem -LiteralPath $cliRoot -Directory -ErrorAction SilentlyContinue)) {
@@ -236,8 +245,14 @@ function Get-Catalogue {
             $result.Error = "no marketplace.json at $manifest"
         }
         else {
+            $fallbackBefore = $script:fallbackParses
+            $droppedBefore = $script:droppedKeys
             try { $result.Data = Read-JsonFile $manifest }
             catch { $result.Error = $_.Exception.Message }
+            if ($null -eq $result.Error -and $script:fallbackParses -gt $fallbackBefore) {
+                $dropped = $script:droppedKeys - $droppedBefore
+                Add-Line "- note: the catalogue of '$Name' needed the fallback parser; $dropped key(s) differing only by case dropped, first spelling kept."
+            }
         }
     }
     $script:catalogues[$Name] = $result
@@ -258,6 +273,17 @@ function Get-InstalledCommit {
         if ($null -eq $fallback) { $fallback = $commit }
     }
     return $fallback
+}
+
+function Test-NpmErrorShape {
+    # npm reports a failure as {"error":{"code":...,"summary":...}}; a package entry has
+    # current/wanted/latest. Read by shape, not by the key's name: a global package may be
+    # literally named "error" (reviewer's case, 2026-09-20).
+    param($Answer)
+    $failure = Get-Field $Answer 'error'
+    if ($null -eq $failure -or $failure -is [string]) { return $false }
+    if ($null -ne (Get-Field $failure 'current') -or $null -ne (Get-Field $failure 'latest')) { return $false }
+    return (($null -ne (Get-Field $failure 'code')) -or ($null -ne (Get-Field $failure 'summary')))
 }
 
 Add-Line "# Update report - $today"
@@ -380,8 +406,16 @@ else {
                 Add-CouldNot "$label  COULD NOT COMPARE - the catalogue of '$marketplaceName' is unreadable: $($catalogue.Error)"
                 continue
             }
+            # Test the field before wrapping it: @($null) has one element, so a catalogue
+            # with no plugins section would walk once with a null candidate and report the
+            # plugin as dropped (class 1) where the fact is could-not-compare (class 2).
+            $pluginList = Get-Field $catalogue.Data 'plugins'
+            if ($null -eq $pluginList) {
+                Add-CouldNot "$label  COULD NOT COMPARE - the catalogue of '$marketplaceName' has no plugins section."
+                continue
+            }
             $entry = $null
-            foreach ($candidate in @(Get-Field $catalogue.Data 'plugins')) {
+            foreach ($candidate in @($pluginList)) {
                 if ([string](Get-Field $candidate 'name') -eq $name) { $entry = $candidate; break }
             }
             if ($null -eq $entry) {
@@ -432,40 +466,57 @@ elseif ($null -eq (Get-Command npm -ErrorAction SilentlyContinue)) {
 else {
     # --json, not --parseable: the parseable form is colon-delimited and a Windows path
     # carries a colon after the drive letter, so splitting on ':' put the path where
-    # the version should be (measured 2026-09-20). One retry: the registry sometimes
-    # answers a transient failure as a JSON object with an "error" key.
-    $answer = ''
-    foreach ($attempt in 1..2) {
-        $answer = ((npm outdated -g --json 2>$null) | Out-String).Trim()
-        if ($answer -notmatch '"error"') { break }
-        Start-Sleep -Seconds 3
+    # the version should be (measured 2026-09-20). npm exits 1 when something IS
+    # outdated, so the exit code alone decides nothing: stdout and stderr are kept
+    # apart, an empty stdout is "everything current" only when npm also exited 0, and
+    # otherwise it is could-not-check naming the first stderr line (a shim, or node
+    # failing before JSON mode, says nothing on stdout). One retry when npm answers its
+    # own error object, recognised by shape and never by the substring "error".
+    $attempts = 2
+    $answer = $null
+    $outdated = $null
+    $readError = ''
+    for ($attempt = 1; $attempt -le $attempts; $attempt++) {
+        $answer = Invoke-Cli -Path 'npm' -Arguments @('outdated', '-g', '--json')
+        $outdated = $null
+        $readError = ''
+        if ($answer.Ran -and -not [string]::IsNullOrWhiteSpace($answer.Out) -and $answer.Out.Trim() -ne '{}') {
+            try { $outdated = ConvertFrom-JsonTolerant $answer.Out.Trim() }
+            catch { $readError = $_.Exception.Message }
+        }
+        $registryError = ($null -ne $outdated) -and (Test-NpmErrorShape $outdated)
+        if (-not $registryError) { break }
+        if ($attempt -lt $attempts) { Start-Sleep -Seconds 3 }
     }
-    if ([string]::IsNullOrEmpty($answer) -or $answer -eq '{}') {
+    if (-not $answer.Ran) {
+        Add-CouldNot "- COULD NOT CHECK: npm could not be started: $($answer.Err)"
+    }
+    elseif ([string]::IsNullOrWhiteSpace($answer.Out)) {
+        if ($answer.Code -eq 0) { Add-Line '- everything current.' }
+        else { Add-CouldNot "- COULD NOT CHECK: npm exited $($answer.Code) with nothing on stdout: $(Get-Complaint $answer)" }
+    }
+    elseif ($answer.Out.Trim() -eq '{}') {
         Add-Line '- everything current.'
     }
+    elseif ($null -eq $outdated) {
+        Add-CouldNot "- COULD NOT READ the answer of npm outdated: $readError"
+    }
+    elseif (Test-NpmErrorShape $outdated) {
+        $failure = Get-Field $outdated 'error'
+        $summary = [string](Get-Field $failure 'summary')
+        if ([string]::IsNullOrEmpty($summary)) { $summary = [string](Get-Field $failure 'code') }
+        Add-CouldNot "- COULD NOT CHECK: npm answered an error twice: $summary"
+    }
     else {
-        $outdated = $null
-        try { $outdated = ConvertFrom-JsonTolerant $answer }
-        catch { Add-CouldNot "- COULD NOT READ the answer of npm outdated: $($_.Exception.Message)" }
-        if ($null -ne $outdated) {
-            $failure = Get-Field $outdated 'error'
-            if ($null -ne $failure) {
-                $summary = [string](Get-Field $failure 'summary')
-                if ([string]::IsNullOrEmpty($summary)) { $summary = [string](Get-Field $failure 'code') }
-                Add-CouldNot "- COULD NOT CHECK: npm answered an error twice: $summary"
-            }
-            else {
-                $any = $false
-                foreach ($property in @($outdated.PSObject.Properties)) {
-                    $current = [string](Get-Field $property.Value 'current')
-                    $newest  = [string](Get-Field $property.Value 'latest')
-                    if ([string]::IsNullOrEmpty($newest)) { continue }
-                    Add-Update "- $($property.Name) : $current -> **$newest**  [UPDATE]"
-                    $any = $true
-                }
-                if (-not $any) { Add-Line '- everything current.' }
-            }
+        $any = $false
+        foreach ($property in @($outdated.PSObject.Properties)) {
+            $current = [string](Get-Field $property.Value 'current')
+            $newest  = [string](Get-Field $property.Value 'latest')
+            if ([string]::IsNullOrEmpty($newest)) { continue }
+            Add-Update "- $($property.Name) : $current -> **$newest**  [UPDATE]"
+            $any = $true
         }
+        if (-not $any) { Add-Line '- everything current.' }
     }
 }
 Add-Line ''

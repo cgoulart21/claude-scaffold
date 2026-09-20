@@ -255,19 +255,22 @@ Assert-True 'the hook names the routine file' ($sessionStart -match 'weekly-rout
 $updates = Get-Text 'maintenance\check-updates.ps1'
 Assert-True 'update check exists' ($updates.Length -gt 0)
 Assert-True 'the update check applies nothing' ($updates -match '(?i)nothing (was |is )?applied|read-only')
-# Its behaviour is exercised in tools/Test-CheckUpdates.ps1; here, what every .ps1
-# under automation/ owes: ASCII-only, and parsing on 5.1.
-$updatesPath = Join-Path $AutomationRoot 'maintenance\check-updates.ps1'
-if (Test-Path -LiteralPath $updatesPath -PathType Leaf) {
-    $nonAscii = @([IO.File]::ReadAllBytes($updatesPath) | Where-Object { $_ -gt 127 }).Count
-    Assert-True 'ascii-only: check-updates.ps1' ($nonAscii -eq 0)
-    $parseErrors = $null
-    [System.Management.Automation.Language.Parser]::ParseFile($updatesPath, [ref]$null, [ref]$parseErrors) | Out-Null
-    Assert-True 'parses: check-updates.ps1' ($null -eq $parseErrors -or $parseErrors.Count -eq 0)
-}
-else {
-    Assert-True 'ascii-only: check-updates.ps1 (file missing)' $false
-    Assert-True 'parses: check-updates.ps1 (file missing)'     $false
+# The maintenance scripts owe what the hooks and the gates owe: ASCII-only, and a clean
+# 5.1 parse. Their behaviour lives in suites of their own (tools/Test-CheckUpdates.ps1).
+foreach ($relative in @('maintenance\check-updates.ps1')) {
+    $path = Join-Path $AutomationRoot $relative
+    $name = Split-Path -Leaf $relative
+    if (Test-Path -LiteralPath $path -PathType Leaf) {
+        $nonAscii = @([IO.File]::ReadAllBytes($path) | Where-Object { $_ -gt 127 }).Count
+        Assert-True "ascii-only: $name" ($nonAscii -eq 0)
+        $parseErrors = $null
+        [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$null, [ref]$parseErrors) | Out-Null
+        Assert-True "parses: $name" ($null -eq $parseErrors -or $parseErrors.Count -eq 0)
+    }
+    else {
+        Assert-True "ascii-only: $name (file missing)" $false
+        Assert-True "parses: $name (file missing)"     $false
+    }
 }
 
 $triggers = Get-Text 'triggers.md'
