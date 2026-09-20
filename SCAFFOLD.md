@@ -87,7 +87,7 @@ One question, and it removes the single largest class of silent failure in this 
 
 Deploy in this order, because each one is referenced by the next:
 
-1. `core/lessons/LESSONS.md` to `<LESSONS-FILE>`. Tell them plainly that the ten families
+1. `core/lessons/LESSONS.md` to `<LESSONS-FILE>`. Tell them plainly that the eleven families
    are **seeds from someone else's practice**, and that the second-occurrence rule is how
    they grow their own.
 2. `core/corrections/log.md.template` to `<CORRECTIONS-LOG>`, suffix removed. **Keep the

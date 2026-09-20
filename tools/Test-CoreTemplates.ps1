@@ -4,7 +4,7 @@
   Structural assertions over core/. These check that the templates say what the
   scaffold claims they say - not that the prose is good, which no test can do.
 
-  Group 2 (the ten lesson families) is deliberately absent: core/lessons/ is
+  Group 2 (the eleven lesson families) is deliberately absent: core/lessons/ is
   authored in a session of its own. The numbering keeps its slot so the group
   lands where it belongs rather than at the end.
 #>
@@ -58,16 +58,19 @@ foreach ($rule in @('independent', 'Assumptions:', 'contradiction', 'published s
     Assert-True "rule survives translation: $rule" ($gov -match [regex]::Escape($rule))
 }
 
-Write-Output 'Group 2 - the ten families and the growth rule'
+Write-Output 'Group 2 - the eleven families and the growth rule'
 
 $lessons = Get-Text 'lessons\LESSONS.md'
 Assert-True 'lessons file exists' ($lessons.Length -gt 0)
 
 $families = @([regex]::Matches($lessons, '(?m)^##\s+\d+\.\s'))
-Assert-True 'exactly ten families' ($families.Count -eq 10)
+# Eleven since 2026-09-20: family 11 (the summarising layer) came in with occurrences from a
+# second practice, which is the FAQ's bar for a contribution. Bump this on purpose, never to
+# make a run green.
+Assert-True 'exactly eleven families' ($families.Count -eq 11)
 
 $applies = @([regex]::Matches($lessons, '(?m)^\*\*Apply:\*\*'))
-Assert-True 'every family carries an Apply line' ($applies.Count -eq 10)
+Assert-True 'every family carries an Apply line' ($applies.Count -eq 11)
 
 Assert-True 'second-occurrence rule is stated' ($lessons -match '(?i)second occurrence')
 Assert-True 'seeds are labelled as borrowed'   ($lessons -match '(?i)borrowed|seeds|not your scars')

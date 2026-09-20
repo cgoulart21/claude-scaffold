@@ -52,7 +52,7 @@ were replaced by a competitor. If yes, it is method.
 | `review/` | One review surface per purpose, and why CI is the authoritative one |
 
 `lessons/` and `corrections/` are two ends of one mechanism: the log counts, and a lesson
-that repeats in a second project graduates into a family. The ten families shipped here are
+that repeats in a second project graduates into a family. The eleven families shipped here are
 **seeds from someone else's practice** - a checklist to start from, not a record of your own
 mistakes. The file says so in its own header, because a borrowed scar presented as your own
 is how a discipline turns decorative.

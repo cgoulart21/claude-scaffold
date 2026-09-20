@@ -39,7 +39,14 @@ second gate, not more confidence in the first.
 check is not a closed metrology envelope - a green build with unit tests is not a system
 invariant - a successful package install is not a trustworthy runtime - a command that
 executes is not a coherent environment - a catalogue that loaded is not a skill that ran -
-a documented scope is not an inventory of the practice.
+a documented scope is not an inventory of the practice - text that came back is not the
+document that was asked for (a portal's HTML page with a 200 where a PDF was expected; a
+404 body in XML that only a file-type check exposed; a 280-byte "Redirect" stub from a
+short link; hundreds of garbage characters shaped like content from an encrypted OCR
+layer, twice in two projects of a second practice). The check "did text come back" passes
+in all of them. The question is "did *the document* come back", and the cheap answer is a
+file-type check on what arrived, or a known phrase from the original searched for in what
+returned - the OCR variant is the worst, because garbage passes the file-type check too.
 
 **Sub-pattern: a gate is worth exactly what it enumerates, not the domain it claims to
 cover.** A protection list that named six components and never included a seventh, which
@@ -126,6 +133,12 @@ passed seventeen assertions while two legitimate syntaxes - an aliased target an
 section-anchored one - made it throw or emit a well-formed finding against a target that
 existed. None of the seventeen used either syntax. **Missing coverage does not show up as
 FAIL; it shows up as green.**
+
+**Confirmed in a second practice.** Nine occurrences in two projects of the same shape - an
+empty return read as "does not exist" - seven of them on a single day, by a practice that
+had not read this file. The rule of three states was rediscovered at seven a day. That is
+what this family predicts: the mistake is cheap to make and expensive to notice, and whoever
+has not named it repeats it until they do.
 
 ---
 
@@ -374,3 +387,39 @@ and dropped two keys that only the other machine had. The rule that closes it: a
 baseline is a union, per-machine difference goes to a sidecar named after the profile, and
 the exporter sorts its keys before writing - without a stable order, every periodic run
 becomes a churn commit that hides the real change among reordered lines.
+
+---
+
+## 11. The summarising layer is not the source
+
+Between you and a document there is, more and more often, a layer that **rewrites**: the
+summary of a search, the fetcher that returns "what the page says", the extractor that
+condenses, the compaction summary that stands in for a conversation, the report you
+generated yourself over a corpus. It returns coherent prose in the right register with the
+original's structure - and what it returns is a **claim about** the source, not the source.
+When the claim is wrong it looks exactly like when it is right.
+
+This is not family 3 (there, target and reference share an assumption; here there is one
+source and a layer in between) and not family 9 (there the rewrite is mechanical - escaping,
+encoding, path conversion; here it is a rewrite of **meaning**, and the string can be intact
+while the fact has changed). What makes it expensive is what makes it useful: the layer
+exists so that you do not open the original, and the saving is real until the day the
+number is wrong.
+
+**Apply:** a number, a name, a title or an attribution that came through a summarising layer
+does not enter an artifact until **one** of them has been checked against the original. If
+the original is on disk, opening it costs less than the summary did. When the layer is your
+own - a report, a lint, an extractor - family 3's rule applies: open one item of the corpus
+and check the number against it before acting. And when you cite, say **which layer** the
+fact came through ("according to the search summary", "the PDF says") - family 7's
+provenance, applied to derived text.
+
+**Shapes it takes:** a search summary that swapped +1.2 °C for +2.1 °C and attached the
+probability to the wrong event - a page fetcher that invented the title, journal and subject
+of an article whose PDF sat correct on disk - a lint report over a knowledge base that said
+the most-cited pages were the thinnest when the truth was the reverse, because the extractor
+behind it was wrong and every number in the report came from it. Four occurrences across
+four projects in two practices. The family has a name of its own, rather than being folded
+into family 3, because it arrived in three different shapes - external search summary,
+external page extractor, self-authored report - and a third shape is what opens a family
+here.

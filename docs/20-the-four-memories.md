@@ -28,7 +28,7 @@ test is: *would I get this wrong again without the note?* If not, it does not go
 
 **Lessons** are method, not tools. A gotcha says "this tool needs that flag"; a lesson says
 "a check that did not run is not a check that passed". Lessons are also injected every
-session, which is why there are ten families and not a hundred.
+session, which is why there are eleven families and not a hundred.
 
 **The vault** is research and is *supposed* to grow without bound. Nothing injects it; it is
 read on demand. That is what lets it be big.
