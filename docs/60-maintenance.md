@@ -23,6 +23,15 @@ output, unpin something you pinned for a reason. The reason is usually in a file
 wrote once and nobody has read since - which is why a pin without its reason next to it gets
 "helpfully" upgraded within two maintenance runs.
 
+The check answers with the same three exit codes as the gates in `automation/verification/`:
+`0` when every surface was checked and is current, `1` when there is something to act on -
+an update, or a plugin its marketplace no longer lists - and `2` when a surface could not be
+checked: the CLI not found, a catalogue unreadable, npm off the PATH. A partial run is
+reported as `2` even when it also found an update, so that "could not check" never hides
+behind "nothing to do". On a sandboxed host the agent CLI is not on PATH; the script looks in
+the application's package cache before giving up, and the report says which of the two it
+used.
+
 ## The weekly routine reads the log, and that is the point
 
 `automation/maintenance/weekly-routine.md` has the steps. The one that justifies the whole
