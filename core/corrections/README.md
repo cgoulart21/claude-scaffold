@@ -51,6 +51,27 @@ Keep the promoted rule short and keep the log line too. The line is the evidence
 rule was earned, and a rule whose reason nobody remembers is a rule that gets deleted in
 the next cleanup.
 
+## Two machines append to the same log
+
+The moment a second machine exists, the log has two live copies and one repository copy,
+and the obvious way to reconcile them - copy the live file into the repository - **erases the
+other machine's lines** with no error. Union is the right operation, and it is subtler than it
+looks: a union that compared literal lines treated `- entry` and `entry` as different and kept
+both, so the fix for copy-over had a duplication mode of its own.
+
+`Merge-CorrectionsLog.ps1` in this folder is that union, with the contracts its suite fixes:
+nothing from either side disappears; an entry that differs only by bullet or whitespace is one
+entry; an entry edited in place (a promotion marker appended) collapses onto the longer
+wording, but only when one wording is a strict prefix of the other above a minimum length -
+two distinct observations about the same tool on the same day share a long prefix easily, and
+a first version that compared the first sixty characters deleted one of them from both logs;
+header prose only the live copy has is never erased; and the result is idempotent, so a
+periodic sync does not become a churn commit.
+
+Call it from your sync script with the two files' lines, and write `MergedText` back to both
+only when `WriteLive` is true. It returns the discarded texts, not a count: whoever removes a
+line from a user's log must be able to show which one.
+
 ## After a programmatic append: sweep for control bytes
 
 Any time a **script** appends to this file - or to any append-only file, a plan, a

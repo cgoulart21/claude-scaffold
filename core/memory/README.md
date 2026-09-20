@@ -118,6 +118,19 @@ already present in the store is never overwritten - the store's copy may be the 
 That ordering is the whole safety argument: converting a folder into a junction destroys
 its contents, and some of those contents may exist nowhere else.
 
+## Renaming a memory breaks the links that point at it
+
+A rename's blast radius is its **incoming** links, and whoever wrote them is not told the
+target changed. One practice renamed a memory file and the `[[old-name]]` inside another
+memory dangled for a day; nothing pointed at it - it surfaced because a different session
+mentioned the rename in passing.
+
+`automation/verification/Assert-MemoryLinks.ps1 -MemoryRoot <MEMORY-STORE>` catches the new
+dangling link. It does not demand that every link resolve - the conventions above allow a link
+to a memory not yet written - so unresolved targets you have decided on go in `-KnownDangling`,
+each with its reason next to it in the caller. An exception that resolves again, or that
+nobody cites any more, fails the run: the list has to stay true or it lies quietly.
+
 ## A junction inside a repository is invisible to git
 
 Worth knowing before you put a reparse point anywhere under version control, because

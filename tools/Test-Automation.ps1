@@ -269,7 +269,7 @@ Assert-True 'verification README exists' ($verification.Length -gt 0)
 Assert-True 'the exit-code contract is stated'   ($verification -match '(?i)exit')
 Assert-True 'snapshot-first is explained'        ($verification -match '(?i)snapshot')
 
-foreach ($name in @('Invoke-Gitleaks.ps1', 'Assert-Baseline.ps1')) {
+foreach ($name in @('Invoke-Gitleaks.ps1', 'Assert-Baseline.ps1', 'Assert-NoControlBytes.ps1', 'Assert-MemoryLinks.ps1', 'Assert-PlanFreshness.ps1', 'Invoke-VaultLint.ps1')) {
     $path = Join-Path $AutomationRoot "verification\$name"
     if (Test-Path -LiteralPath $path -PathType Leaf) {
         $nonAscii = @([IO.File]::ReadAllBytes($path) | Where-Object { $_ -gt 127 }).Count

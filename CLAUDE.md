@@ -47,7 +47,7 @@ push and pull request. Read `tools/README.md` before trusting it: it is delibera
 what it does **not** catch, and a green run means "no enumerated pattern matched", not "this
 tree is clean".
 
-Run the full sweep before pushing anything:
+Run the full sweep before pushing anything - it is the same list CI runs, in the same order:
 
 ```powershell
 .\tools\Test-CheckNoPersonalData.ps1
@@ -55,12 +55,24 @@ Run the full sweep before pushing anything:
 .\tools\Test-SetMemoryJunctions.ps1
 .\tools\Test-Automation.ps1
 .\tools\Test-Stack.ps1
+.\tools\Test-Docs.ps1
+.\tools\Test-AssertNoControlBytes.ps1
+.\tools\Test-AssertMemoryLinks.ps1
+.\tools\Test-AssertPlanFreshness.ps1
+.\tools\Test-InvokeVaultLint.ps1
+.\tools\Test-MergeCorrectionsLog.ps1
+.\tools\Test-BackupPushClassification.ps1
 .\tools\check-no-personal-data.ps1 -Path .
 ```
 
 The suites run **before** the scan, on purpose: a broken scanner that exits 0 would sail
 through the scan without reading a file, and only the suites prove a failure is still
-reachable.
+reachable. Every suite that exercises a gate has at least one case where the gate must
+**fail** on a planted defect; a gate seen only passing is not evidence.
+
+When you add a suite, add it in three places or it will exist in none of them: this list,
+`.github/workflows/sanitize.yml`, and - if it wraps a `.ps1` under `automation/` - the
+ASCII/parse list in `tools/Test-Automation.ps1`.
 
 ## House conventions
 

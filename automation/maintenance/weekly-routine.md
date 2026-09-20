@@ -30,28 +30,49 @@ this is makes it.
 
 ## 2. Plan freshness (needs `core/handoff/`)
 
-Find every `PLAN.md` you are responsible for and check its `## Checkpoint`:
+Run `automation/verification/Assert-PlanFreshness.ps1 -Root <your projects root>`. It reads
+every `## Checkpoint` and reports:
 
 - `Status: active` with `Updated:` more than **14 days** ago → stale.
 - `Base:` that is not an ancestor of the current `HEAD` → stale, and more urgent: the plan
-  describes code that has moved underneath it.
+  describes code that has moved underneath it. (Checked with git when the project is a
+  repository; the report says when that surface was *not* exercised.)
+- Missing fields → non-conformant, which is worse than stale: a plan that cannot be told
+  alive misinforms whoever reads it.
 
 Stale means *re-read before trusting*, not *delete*. Why it went stale is usually
-information.
+information. The script never edits a plan; filling the fields is a human act.
 
-## 3. Baseline (needs `automation/verification/`)
+## 3. Baseline and corruption (needs `automation/verification/`)
 
 Run `Assert-Baseline.ps1`. Every failure is either a decision you changed and did not record,
 or drift you did not intend. Both are worth a line in the report; only the second is worth
 fixing today.
 
-## 4. Vault lint (needs `vault/`)
+Then run `Assert-NoControlBytes.ps1 -Root <repo>` over **every** repository you version -
+not only the corrections log. The rule "sweep after appending to the log" is too narrow: the
+two latent bytes one practice found on the day the gate was written were in a memory note and
+a script, files no log-scoped rule would ever have reached.
 
-Run the **Lint** operation as defined in the vault's instruction file: orphans, stubs,
-contradictions, stale claims, missing pages and cross-references, promotion and archiving
-candidates. Report only.
+If you keep the memory store, run `Assert-MemoryLinks.ps1 -MemoryRoot <store>` as well. A
+rename's blast radius is its incoming links, and nothing else tells you one went dangling.
 
-## 5. Report
+## 4. Memory silos (needs `core/memory/`)
+
+Run `core/memory/Set-MemoryJunctions.ps1 -MemoryRoot <store> -SiloRoot <agent-home>/projects`
+**without `-Apply`**. A new project creates a new silo, and nothing else detects it - one
+practice found four in three weeks, while its own check kept passing because it enumerated
+only silos that already had a `memory/`. Read the paths before the verdicts: every line must
+end in `\memory`.
+
+## 5. Vault lint (needs `vault/`)
+
+Run `automation/verification/Invoke-VaultLint.ps1 -VaultRoot <vault>` for the mechanical
+half: orphans, stubs, real dangling links, the promotion queue. Then do the judgement half
+yourself, as the vault's instruction file defines it: contradictions, stale claims, missing
+pages and cross-references, archiving candidates. Report only.
+
+## 6. Report
 
 Write a dated report next to the markers: a one-line summary, the repeated corrections found
 (or "none"), the stale plans, the baseline result, the lint as a prioritised list, and any
@@ -62,7 +83,7 @@ routine that stops at the first obstacle is a routine that stops being run. A st
 could not run and a step that found nothing are different facts, and the report must not
 collapse them.
 
-## 6. Stamp the marker
+## 7. Stamp the marker
 
 Write today's date into `<MAINTENANCE-DIR>/last-run`, in `YYYY-MM-DD` form. This is what
 stops the hook nagging, so do it last - and only if the routine actually ran.
@@ -71,7 +92,7 @@ stops the hook nagging, so do it last - and only if the routine actually ran.
 
 ## Adding your own steps
 
-The five above are entailed by what the scaffold installs. Yours will have more: a check
+The six above are entailed by what the scaffold installs. Yours will have more: a check
 that a sibling repository received the improvements you made this week, a licence
 expiry, a backup you want to prove is restorable rather than merely present.
 

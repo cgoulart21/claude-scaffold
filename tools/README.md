@@ -85,7 +85,7 @@ full of holes stops enumerating the thing it claims to cover.
 ## Running it
 
 ```powershell
-.\tools\Test-CheckNoPersonalData.ps1   # 25 assertions: the gate itself
+.\tools\Test-CheckNoPersonalData.ps1   # the gate's own suite
 .\tools\check-no-personal-data.ps1 -Path .
 ```
 

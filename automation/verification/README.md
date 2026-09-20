@@ -1,15 +1,25 @@
 # Verification
 
-Two different jobs that people collapse into one, and should not.
+Six different jobs that people collapse into one or two, and should not.
 
 | Concern | Tool here | Question it answers |
 |---|---|---|
 | Secrets | `Invoke-Gitleaks.ps1` | is there a credential in what I am about to commit? |
 | Configuration drift | `Assert-Baseline.ps1` | is my setup still the one I decided on? |
+| Silent corruption | `Assert-NoControlBytes.ps1` | did a programmatic write leave a control byte in any text file? |
+| Memory renames | `Assert-MemoryLinks.ps1` | does every `[[wikilink]]` in the memory store still resolve, or is it a declared exception that is still true? |
+| Plan staleness | `Assert-PlanFreshness.ps1` | is any active `PLAN.md` older than the threshold, or based on a commit `HEAD` no longer descends from? |
+| Vault health | `Invoke-VaultLint.ps1` | orphans, stubs, real dangling links - the mechanical half of the vault's Lint operation |
 
-Neither covers the other, and neither covers the sanitization gate in `tools/`, which looks
-for identity and location rather than credentials. Three gates, three enumerations - and
-each is worth exactly what it enumerates.
+None covers another, and none covers the sanitization gate in `tools/`, which looks for
+identity and location rather than credentials. Seven gates, seven enumerations - and each is
+worth exactly what it enumerates. The last four were promoted from a private practice after a
+second machine audited this repository and pointed out that the weekly routine asked the
+reader to do by hand what the practice had already automated.
+
+Each of the four has a suite in `tools/` that runs in CI and proves the gate **fails** on a
+planted defect before proving it passes on a clean fixture. A gate seen only passing is not
+evidence.
 
 ## The exit-code contract
 
@@ -108,7 +118,26 @@ and "green" from an unknown version is the most expensive kind of green.
 ```powershell
 .\automation\verification\Invoke-Gitleaks.ps1 -RepositoryPath .
 .\automation\verification\Assert-Baseline.ps1
+.\automation\verification\Assert-NoControlBytes.ps1 -Root C:\Path\To\your-repo
+.\automation\verification\Assert-MemoryLinks.ps1 -MemoryRoot <MEMORY-STORE> -KnownDangling not-written-yet
+.\automation\verification\Assert-PlanFreshness.ps1 -Root <PROJECTS-ROOT>
+.\automation\verification\Invoke-VaultLint.ps1 -VaultRoot <VAULT-ROOT>
 ```
+
+The three that take a root are **required** to be told it: a gate that guessed where your
+store or your projects live would report a clean sweep of the wrong folder, and an empty
+sweep must never read as a clean one (all of them exit `2` on an empty result, not `0`).
+
+`Assert-MemoryLinks` takes an exception list on purpose. The memory conventions allow a link
+to a memory not yet written, so a strict gate would be born red; what the gate catches is the
+*new* dangling link. Every exception you declare must stay true: an entry that resolves again,
+or that nobody cites any more, fails the run - an exception list that does not maintain itself
+goes back to lying quietly.
+
+`Invoke-VaultLint` prints one number it does not judge: comparative claims with no number in
+the sentence. A claim with a number can be checked mechanically; one without can only be
+read. While that count fits a manual reading, reading is cheaper than building a detector for
+a class nobody has observed an instance of. Watch the number; build when it grows.
 
 Wire the secret scan into a pre-commit hook so it runs whether or not anyone remembers, and
 run the baseline from your periodic maintenance routine. A gate that fires only when

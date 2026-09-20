@@ -51,6 +51,44 @@ jobs:
           .\tools\Test-Docs.ps1
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
+      # The four promoted gates and the corrections merger, each proved to FAIL on a
+      # planted defect before it is trusted to pass.
+      - name: Control-byte gate
+        shell: powershell
+        run: |
+          .\tools\Test-AssertNoControlBytes.ps1
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Memory-link gate
+        shell: powershell
+        run: |
+          .\tools\Test-AssertMemoryLinks.ps1
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Plan-freshness gate
+        shell: powershell
+        run: |
+          .\tools\Test-AssertPlanFreshness.ps1
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Vault lint
+        shell: powershell
+        run: |
+          .\tools\Test-InvokeVaultLint.ps1
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Corrections-log union
+        shell: powershell
+        run: |
+          .\tools\Test-MergeCorrectionsLog.ps1
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Push-failure classification
+        shell: powershell
+        run: |
+          .\tools\Test-BackupPushClassification.ps1
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
       - name: Scan the tree
         shell: powershell
         run: |
