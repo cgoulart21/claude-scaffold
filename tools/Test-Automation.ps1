@@ -178,6 +178,25 @@ try {
     # block that exists to nag says nothing to the one person who needs it most.
     $output = Invoke-SessionStart -Arguments @{ MaintenanceRoot = (Join-Path $box 'no-such-folder') }
     Assert-True 'a missing maintenance folder warns rather than skipping' ($output -match '(?i)not found')
+
+    # Block 3, configured and present but WITHOUT the section it looks for, must say so.
+    # Until 2026-09-20 it printed nothing - the silent skip the two other blocks forbid.
+    $index = Join-Path $box 'MEMORY.md'
+    Set-Content -LiteralPath $index -Encoding UTF8 -Value @('# Index', '', '## Something else', '- [x](x.md) - not the section')
+    $output = Invoke-SessionStart -Arguments @{ MaintenanceRoot = (Join-Path $box 'maintenance'); MemoryIndexPath = $index }
+    Assert-True 'a memory index without the gotcha section warns' ($output -match '(?i)no .*section')
+
+    Set-Content -LiteralPath $index -Encoding UTF8 -Value @('# Index', '', '## Tool gotchas', '- [tool](tool.md) - the gotcha')
+    $output = Invoke-SessionStart -Arguments @{ MaintenanceRoot = (Join-Path $box 'maintenance'); MemoryIndexPath = $index }
+    Assert-True 'a memory index with the section prints it' ($output -match 'the gotcha' -and $output -notmatch '(?i)no .*section')
+
+    # The corrections counter must not shrink in silence: a line that starts with a
+    # date but not with "- " is a lookalike, and lookalikes are named, not dropped.
+    $log = Join-Path $box 'log.md'
+    Set-Content -LiteralPath $log -Encoding UTF8 -Value @('# Log', '', '- 2026-01-01 counted one', '2026-01-02 lookalike, not counted', '- 2026-01-03 counted two')
+    $output = Invoke-SessionStart -Arguments @{ MaintenanceRoot = (Join-Path $box 'maintenance'); LessonsPath = $lessons; CorrectionsLogPath = $log }
+    Assert-True 'the counter reports the conforming entries' ($output -match 'corrections log: 2 line')
+    Assert-True 'and names the lookalike instead of hiding it' ($output -match '1 line\(s\).*start with a date but not')
 }
 finally { Remove-Item -LiteralPath $box -Recurse -Force -ErrorAction SilentlyContinue }
 
@@ -211,6 +230,14 @@ Assert-True 'backup script exists' ($backup.Length -gt 0)
 foreach ($mode in @('DIVERGENCE', 'NETWORK', 'AUTHENTICATION', 'NOT CLASSIFIED')) {
     Assert-True "push failure mode classified: $mode" ($backup -match [regex]::Escape($mode))
 }
+# The fetch must come BEFORE the sync script is invoked, not after the push fails: by
+# then the mirror has already overwritten the tree. Order is asserted on the source
+# because this group reads source; a behavioural fixture with two clones belongs in
+# a suite of its own (the private practice has one with 19 cases).
+$fetchAt = $backup.IndexOf('fetch -q $Remote')
+$syncAt  = $backup.IndexOf('& $SyncScript')
+Assert-True 'the backup fetches before it mirrors'    ($fetchAt -ge 0 -and $syncAt -ge 0 -and $fetchAt -lt $syncAt)
+Assert-True 'and stops when the remote is ahead'      ($backup -match 'BEHIND')
 
 $routine = Get-Text 'maintenance\weekly-routine.md'
 Assert-True 'the weekly routine is defined, not merely nagged about' ($routine.Length -gt 0)

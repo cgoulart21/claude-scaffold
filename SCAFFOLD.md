@@ -95,7 +95,10 @@ Deploy in this order, because each one is referenced by the next:
 3. `core/memory/` - create `<MEMORY-STORE>`, copy `MEMORY.md.template` in as `MEMORY.md`
    and `memory-file.template.md` alongside it, then run `Set-MemoryJunctions.ps1
    -MemoryRoot <MEMORY-STORE> -SiloRoot <AGENT-HOME>/projects` **without `-Apply` first**,
-   so they see what it would change before it changes anything.
+   so they see what it would change before it changes anything. **Every path the dry run
+   prints must end in `\memory`** - it converts `<cwd>\memory`, never `<cwd>`. If it lists
+   project directories, stop and do not apply; `core/memory/README.md` shows the expected
+   output.
 4. `core/governance/CLAUDE.md.template` to `<AGENT-HOME>` as the global instruction file.
    Replace `<MEMORY-PATH>`, `<LESSONS-PATH>` and `<CORRECTIONS-PATH>` with the three paths
    just established - which is why this step comes after them, not before.

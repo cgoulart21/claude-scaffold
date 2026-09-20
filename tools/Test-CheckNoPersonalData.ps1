@@ -102,6 +102,22 @@ foreach ($case in $planted) {
     finally { Remove-Item -LiteralPath $tree -Recurse -Force }
 }
 
+Write-Output 'Group 2b - a hit inside a *.template is a hit'
+
+# To Get-ChildItem the extension of CLAUDE.md.template is .template, not .md. Until
+# 2026-09-20 the gate skipped every template - 59 of 63 files read - and a planted
+# path in one of them passed green. A second machine found it. This case would have
+# failed then and must keep failing if .template ever drops off the list again.
+foreach ($name in @('CLAUDE.md.template', 'b.md.template')) {
+    $tree = New-Tree -Content (Join-Fragment @('The log lives in C:', '\Users\', 'jsmith\home')) -Name $name
+    try {
+        $result = Invoke-Gate -Tree $tree
+        Assert-True "fires inside $name"         ($result.Code -eq 1)
+        Assert-True "names the file: $name"      ($result.Text -like "*$name*")
+    }
+    finally { Remove-Item -LiteralPath $tree -Recurse -Force }
+}
+
 Write-Output 'Group 3 - usage errors exit 2, never 0'
 
 $tree = New-Tree -Content 'harmless'

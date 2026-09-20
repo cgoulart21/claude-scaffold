@@ -75,14 +75,43 @@ write that line for you.
 
 ## Converting an existing silo
 
-Run the script without `-Apply` first. It writes nothing and reports one line per silo:
+**What a silo is, exactly.** The host keeps one directory per working directory under
+`<AGENT-HOME>\projects\<cwd>\`. That directory holds the session transcripts (`*.jsonl`)
+*and* a `memory\` subfolder. The silo is the **subfolder**. The script converts
+`<cwd>\memory` and never touches `<cwd>` itself.
+
+Run the script without `-Apply` first. It writes nothing and reports one line per project,
+with the **full path** of the candidate:
 
 ```powershell
 .\Set-MemoryJunctions.ps1 -MemoryRoot <MEMORY-STORE> -SiloRoot <AGENT-HOME>\projects
 ```
 
+```
+  real-folder         <AGENT-HOME>\projects\<cwd-1>\memory
+  ok                  <AGENT-HOME>\projects\<cwd-2>\memory
+  missing             <AGENT-HOME>\projects\<cwd-3>\memory
+
+3 project(s): 1 correct, 2 divergent, 0 refused
+Re-run with -Apply to convert the divergent ones. Files are carried into the store first.
+```
+
+**Read the paths before you read the verdicts.** Every line must end in `\memory`. If the
+script ever lists the project directories themselves, stop: it is looking at the wrong
+level, and `-Apply` would carry your transcripts into the store and remove the directories.
+That is exactly what a version before 2026-09-20 did, and a second machine caught it in
+dry run because the paths were on screen. The fixture in `tools/` now models the host's
+layout - a transcript beside `memory\` that must stay where it is - but the fixture proves
+the script does what the fixture describes; the paths on your screen prove it does what
+your machine needs.
+
 Exit `0` means every silo is already a junction into the store; `1` means at least one is
-not; `2` means it could not run at all.
+not, or one was **refused**; `2` means it could not run at all.
+
+A candidate is refused, and never converted, when it holds `*.jsonl` (then it is a project
+directory, whatever it is called) or when it holds a reparse point (removing a directory
+that contains a junction can remove the junction's target). Refused lines say why; resolve
+them by hand.
 
 With `-Apply`, a real folder is **copied into the store before it is removed**, and a file
 already present in the store is never overwritten - the store's copy may be the newer one.

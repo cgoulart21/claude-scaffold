@@ -76,6 +76,26 @@ your memory index. Those are edited in place, because the repository is where th
 Know which of your files are which, and say so at the top of that repository's own
 instruction file.
 
+### The second machine, and the order that is not optional
+
+With two machines the direction above has a second half, and it is the half that fails
+silently. Machine B pushes an improvement to a mirrored file. Machine A, behind, runs its
+backup: the sync overwrites the repository copy with A's older live file, commits, and the
+push is refused. Good - the refusal is loud. The backup script now fetches first and stops
+before touching anything when the remote is ahead, so this case ends there.
+
+The case no script catches is the stale machine that does the *right* thing first: it pulls,
+gets B's improvement into the repository, and then syncs - and the sync mirrors A's old live
+file over the freshly pulled one. Clean commit, clean push, improvement gone. Nothing errors,
+because every step did what it was told.
+
+The rule that closes it is procedural: **repository to machine first, machine to repository
+after, never the reverse.** On a machine that has been away, restore or bootstrap from the
+pulled repository *before* you sync from it. Measure `ahead/behind` for every repository you
+share before you start, not after something looks wrong. This is lesson family 10 in
+operational form: the handoff described the machine it came from, and the machine you are
+on is not that one.
+
 ## What maintenance does not cover
 
 Nothing above synchronises one setup with another. If you improve a *shape* - a rule, a

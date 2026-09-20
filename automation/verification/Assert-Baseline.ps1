@@ -84,6 +84,26 @@ foreach ($hit in [regex]::Matches($wired, '-File\s+\\?["'']?([^"''\\]+(?:\\\\[^"
 }
 Assert-True "every wired hook script exists on disk [$($missing -join '; ')]" ($missing.Count -eq 0)
 
+# A hook whose command says "$env:..." is a PowerShell command. On Windows the host runs
+# hook commands in bash when Git Bash is installed, and bash expands "$env:USERPROFILE"
+# to ":USERPROFILE" - the file does not resolve, the hook does not start, and a guard
+# that does not start does not block. Declaring "shell": "powershell" on the entry is
+# what makes the command mean the same thing on every machine. Measured on a second
+# machine on 2026-09-20; the public wiring example lacked the key until then.
+$undeclared = @()
+if ($settings.PSObject.Properties.Name -contains 'hooks') {
+    foreach ($eventName in $settings.hooks.PSObject.Properties.Name) {
+        foreach ($group in @($settings.hooks.$eventName)) {
+            foreach ($entry in @($group.hooks)) {
+                $cmd = [string]$entry.command
+                $hasShell = ($entry.PSObject.Properties.Name -contains 'shell') -and -not [string]::IsNullOrEmpty([string]$entry.shell)
+                if ($cmd -match '\$env:' -and -not $hasShell) { $undeclared += "$eventName" }
+            }
+        }
+    }
+}
+Assert-True "every hook that uses `$env: declares its shell [$($undeclared -join '; ')]" ($undeclared.Count -eq 0)
+
 Write-Output ''
 Write-Output "PASS $script:Pass  FAIL $script:Fail"
 if ($script:Fail -gt 0) { exit 1 }

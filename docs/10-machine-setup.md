@@ -101,11 +101,16 @@ error.
 ## Trap 3 - long paths
 
 Windows still defaults to a 260-character path limit, and a deep node_modules or a nested
-worktree passes it easily. Enable long paths once, machine-wide, rather than per command:
+worktree passes it easily. Enable long paths once, for your user, rather than per command:
 
 ```powershell
-git config --system core.longpaths true
+git config --global core.longpaths true
 ```
+
+`--global` writes to your own `.gitconfig` and needs no elevation. The `--system` form
+writes into Git's own installation folder under Program Files and asks for administrator
+rights - which would contradict the promise at the top of this chapter. Both fix the same
+problem.
 
 Setting it for a single command does **not** persist, which produces the worst version of
 this bug - it worked when you tested it and fails in the run you were not watching.

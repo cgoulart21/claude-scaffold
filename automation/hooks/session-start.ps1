@@ -38,7 +38,11 @@ $EnableMemoryInjection      = $true
 $DefaultMaintenanceRoot    = (Join-Path $env:USERPROFILE '.claude\maintenance')
 $DefaultLessonsPath        = ''    # e.g. C:\Path\To\knowledge\LESSONS.md
 $DefaultMemoryIndexPath    = ''    # e.g. C:\Path\To\knowledge\memory\MEMORY.md
-$DefaultCorrectionsLogPath = (Join-Path $env:USERPROFILE '.claude\corrections\log.md')
+$DefaultCorrectionsLogPath = ''    # e.g. C:\Path\To\knowledge\corrections\log.md
+# The corrections log default is empty like the other two knowledge files, and for the
+# same reason: SCAFFOLD.md puts the three knowledge files in a repository of your own,
+# never under the agent home. A default there would point at the place the guide says
+# not to use, and until 2026-09-20 it did.
 
 # Heading of the section in your memory index that holds tool gotchas. Only that
 # section is printed: the rest of the index is actionable INSIDE a given project,
@@ -126,11 +130,19 @@ if ($EnableLessonInjection -and -not [string]::IsNullOrEmpty($LessonsPath)) {
             $block += ($titles | ForEach-Object { "  $_" })
 
             if (-not [string]::IsNullOrEmpty($CorrectionsLogPath) -and (Test-Path -LiteralPath $CorrectionsLogPath)) {
-                $entries = @(Get-Content -LiteralPath $CorrectionsLogPath -Encoding UTF8 -ErrorAction SilentlyContinue |
-                    Where-Object { $_ -match '^- \d{4}-\d{2}-\d{2} ' })
+                $logLines = @(Get-Content -LiteralPath $CorrectionsLogPath -Encoding UTF8 -ErrorAction SilentlyContinue)
+                $entries  = @($logLines | Where-Object { $_ -match '^- \d{4}-\d{2}-\d{2} ' })
+                # A line that starts with a date but not with "- " looks like an entry and is
+                # not counted. Counting only the exact format, a log that had drifted between
+                # two formats reported 46 of 105 entries - shrinking in silence, which is the
+                # one thing this block must never do. Name the drift instead of hiding it.
+                $lookalike = @($logLines | Where-Object { $_ -match '^\d{4}-\d{2}-\d{2}' })
                 if ($entries.Count -gt 0) {
                     $last = ($entries[-1] -split ' ')[1]
                     $block += "  (corrections log: $($entries.Count) line(s), last on $last; promote on the SECOND occurrence)"
+                }
+                if ($lookalike.Count -gt 0) {
+                    $block += "  WARNING: $($lookalike.Count) line(s) in the corrections log start with a date but not with '- ' and are not counted. Fix the format or the count is wrong."
                 }
             }
             $messages += ($block -join "`n")
@@ -157,6 +169,12 @@ if ($EnableMemoryInjection -and -not [string]::IsNullOrEmpty($MemoryIndexPath)) 
 
         if ($gotchas.Count -gt 0) {
             $messages += (@("Memory -- $($gotchas.Count) tool gotcha(s) ($MemoryIndexPath):") + $gotchas) -join "`n"
+        }
+        else {
+            # Configured, present, and yet nothing to print means the index does not have
+            # the section this hook looks for - a heading renamed, or an index organised by
+            # another criterion. Same rule as blocks 1 and 2: configured but absent is loud.
+            $messages += "WARNING: memory index at $MemoryIndexPath has no '## $GotchaSectionHeading' section with '- [' entries. Rename the heading in this hook, or empty MemoryIndexPath to switch this block off."
         }
     }
 }

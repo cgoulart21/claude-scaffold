@@ -40,6 +40,30 @@ if ([string]::IsNullOrEmpty($RepositoryPath) -or -not (Test-Path (Join-Path $Rep
     return
 }
 
+# ---------------------------------------------------------------------------
+# FETCH BEFORE THE MIRROR TOUCHES ANYTHING. The old order was sync -> commit -> push,
+# and a refused push was classified correctly - but by then the sync had already
+# overwritten the tree with THIS machine's state and the commit existed. If the other
+# machine had improved a mirrored file, the natural resolution (pull, sync again)
+# reverted that improvement in the next cycle, silently. One practice lost a day to
+# exactly this on 2026-08-05; the refused push was the only thing that saved it.
+# So: if the remote is ahead, stop here, before any file changes, and say what to do.
+# ---------------------------------------------------------------------------
+$fetchOut = (git -C $RepositoryPath fetch -q $Remote $Branch 2>&1) | Out-String
+if ($LASTEXITCODE -eq 0) {
+    $behind = (git -C $RepositoryPath rev-list --count "HEAD..$Remote/$Branch" 2>&1) | Out-String
+    if ($LASTEXITCODE -eq 0 -and $behind.Trim() -match '^\d+$' -and [int]$behind.Trim() -gt 0) {
+        Write-Output "Backup: this machine is BEHIND $Remote/$Branch by $($behind.Trim()) commit(s). Nothing was mirrored or committed."
+        Write-Output "        Order is repository -> machine first (pull, then restore/bootstrap), machine -> repository after. Syncing now would overwrite what the other machine pushed."
+        return
+    }
+}
+else {
+    # Could not fetch: say so and continue. Offline is not a reason to skip the local
+    # backup; the push classification below will name the network if that is the cause.
+    Write-Output "Backup: could not fetch $Remote/$Branch before syncing (continuing; push will tell). git said: $($fetchOut.Trim())"
+}
+
 if (-not [string]::IsNullOrEmpty($SyncScript) -and (Test-Path -LiteralPath $SyncScript)) {
     & $SyncScript | Out-Null
 }

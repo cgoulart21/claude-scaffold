@@ -7,20 +7,24 @@ Three hooks. Two guard, one informs. The informing one is the reason this folder
 | `block-dangerous-git.ps1` | `PreToolUse` | yes - exit 2 stops the tool call |
 | `review-before-commit.ps1` | `PreToolUse` | never - advisory only |
 | `session-start.ps1` | `SessionStart` | n/a - prints context |
-| `session-start.ps1 -IndexOnly` | `PreCompact` | n/a - prints context |
 
-**Compaction is a session boundary in miniature, and it is the one people forget.** When a
-long session compacts, the block `SessionStart` printed is gone - and that block was the
-only path by which the lesson families and the tool gotchas reached the context at all.
-Registering the same script on `PreCompact` puts them back.
+**Compaction is a session boundary, and the host treats it as one.** When a long session
+compacts, the block this hook printed is summarised away with everything else - and that
+block was the only path by which the lesson families and the tool gotchas reached the
+context at all. You do not need a second registration to put it back: `SessionStart` fires
+again after compaction (its `matcher` is `compact` on that start), so the same hook reprints
+the same block into the fresh context. Measured on one practice: 36 post-compaction starts,
+every one with the block.
 
-Use a mode switch rather than a second script: one operational source, per family 5. The
-maintenance reminders should *not* repeat on compaction - they already fired when the
-session opened, and repeating them teaches the reader to skip the whole block. What is
-worth adding in compact mode is a nudge to write down state that only exists in the
-context about to be discarded: if the project has an `active` plan file, say so, because
-after compaction the detail that would have filled `Done`/`Next` is no longer there to
-write.
+Until 2026-09-20 this table advertised a `-IndexOnly` switch on `PreCompact`. The switch did
+not exist in the published script, and the idea behind it was wrong: a `PreCompact` hook
+runs *before* the summary, so what it prints goes into the region about to be discarded.
+A second machine found the phantom switch; the measurement above found the wrong idea.
+
+If you want the post-compaction start to say something different from the first start -
+"the plan file may now be stale; refill `Done`/`Next`" is the useful thing - read the event's
+`source` field from stdin and branch on `compact`. This script does not do that yet; it
+prints the same block on every start, which is correct and merely repetitive.
 
 ## Why `session-start.ps1` matters more than the other two
 
@@ -46,10 +50,18 @@ Two design choices follow from that, and both matter:
 
 An unconfigured block, on the other hand, says nothing at all. Off is off; broken is loud.
 
+**Block 3 may be redundant on your host.** Claude Code injects the memory index of the
+current project into every session on its own (the auto-memory feature). If your index is
+that file, block 3 prints the same gotchas a second time - noise that trains the reader to
+skip the whole block, which is the failure this hook exists to prevent. On such a host
+leave `MemoryIndexPath` empty. The block earns its place when the index lives somewhere the
+host does not read, or on a host without auto-memory. One practice measured its own
+duplicate at about a thousand tokens per session start.
+
 ## Wiring
 
 Add to your settings file. `PreToolUse` hooks receive the event on stdin and are matched per
-tool; `SessionStart` runs once when a session opens.
+tool; `SessionStart` runs when a session opens, resumes, or restarts after compaction.
 
 ```json
 {
@@ -58,21 +70,29 @@ tool; `SessionStart` runs once when a session opens.
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE/.claude/hooks/block-dangerous-git.ps1\"" },
-          { "type": "command", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE/.claude/hooks/review-before-commit.ps1\"" }
+          { "type": "command", "shell": "powershell", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE/.claude/hooks/block-dangerous-git.ps1\"" },
+          { "type": "command", "shell": "powershell", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE/.claude/hooks/review-before-commit.ps1\"" }
         ]
       }
     ],
     "SessionStart": [
       {
         "hooks": [
-          { "type": "command", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE/.claude/hooks/session-start.ps1\"", "timeout": 15 }
+          { "type": "command", "shell": "powershell", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE/.claude/hooks/session-start.ps1\"", "timeout": 15 }
         ]
       }
     ]
   }
 }
 ```
+
+**`"shell": "powershell"` is not decoration.** On Windows the host runs a hook command in
+`bash` when Git Bash is installed and in `powershell` only when it is not. In bash,
+`$env:USERPROFILE` expands to `:USERPROFILE`, the `-File` path does not resolve, and a
+`PreToolUse` guard that fails to start does not block: the door is open with no warning.
+Declaring the shell makes the command mean the same thing on every machine. (Writing
+`$USERPROFILE` instead would work in bash and break in powershell - the opposite trap.)
+Until 2026-09-20 this example had no `shell` key; a second machine measured the expansion.
 
 Repeat the `PreToolUse` block for every tool name that can run a shell command - on this
 stack that means `Bash` and `PowerShell`. A guard wired to one of them and not the other is

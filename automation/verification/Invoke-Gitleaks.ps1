@@ -38,7 +38,11 @@ if (-not (Test-Path -LiteralPath (Join-Path $RepositoryPath '.git'))) {
     exit 2
 }
 
-$arguments = @('protect', '--staged', '--no-banner', '--redact', '--source', $RepositoryPath)
+# `gitleaks git --pre-commit --staged <repo>` is the current form. `protect --staged` is
+# deprecated since 8.19 (hidden from --help, still accepted) and a future bump removes it;
+# with 8.30.1 pinned this wrapper would then exit 126 on every commit. The repository is a
+# positional argument here, not --source. Changed 2026-09-20 after a second machine's audit.
+$arguments = @('git', '--pre-commit', '--staged', '--no-banner', '--redact', $RepositoryPath)
 if (-not [string]::IsNullOrEmpty($ConfigPath) -and (Test-Path -LiteralPath $ConfigPath)) {
     $arguments += @('--config', $ConfigPath)
 }

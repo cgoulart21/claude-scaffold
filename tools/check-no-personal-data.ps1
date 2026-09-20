@@ -23,7 +23,10 @@ $ErrorActionPreference = 'Stop'
 if ([string]::IsNullOrEmpty($PatternFile)) { $PatternFile = Join-Path $PSScriptRoot 'patterns.txt' }
 if ([string]::IsNullOrEmpty($Path))        { $Path        = Split-Path -Parent $PSScriptRoot }
 
-$textExtensions = @('.md', '.ps1', '.psm1', '.psd1', '.txt', '.yml', '.yaml', '.json', '.sh', '.svg', '.toml', '.cfg', '.gitignore')
+# .template is on the list on purpose: to Get-ChildItem the extension of CLAUDE.md.template
+# is .template, not .md, and the templates are exactly the files someone fills with real
+# paths and may sync back. Until 2026-09-20 they were skipped - 59 of 63 files read.
+$textExtensions = @('.md', '.ps1', '.psm1', '.psd1', '.txt', '.yml', '.yaml', '.json', '.sh', '.svg', '.toml', '.cfg', '.gitignore', '.template')
 
 function Get-GatePattern {
     param([string]$File)
