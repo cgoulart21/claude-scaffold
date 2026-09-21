@@ -98,10 +98,10 @@ if ($EnableMaintenanceReminders -and -not [string]::IsNullOrEmpty($MaintenanceRo
 
     $updates = Get-MarkerAgeDays (Join-Path $MaintenanceRoot 'updates-last-check')
     if ($null -eq $updates) {
-        $messages += "REMINDER: the update check has no readable marker (maintenance/updates-last-check). Run check-updates and backup-config when convenient and write the date."
+        $messages += "REMINDER: the update check has no readable marker (maintenance/updates-last-check). Run check-updates and backup-config when convenient and write the date. Exit 1 from check-updates means it found something to act on, not that it failed; 2 means a surface could not be checked."
     }
     elseif ($updates -ge $UpdatesOverdueDays) {
-        $messages += "REMINDER: the update and backup check is overdue (last run $updates days ago). Run check-updates and backup-config, then write the date into maintenance/updates-last-check. Skip if the user is mid-task."
+        $messages += "REMINDER: the update and backup check is overdue (last run $updates days ago). Run check-updates and backup-config, then write the date into maintenance/updates-last-check. Exit 1 from check-updates means it found something to act on, not that it failed; 2 means a surface could not be checked. Skip if the user is mid-task."
     }
 }
 

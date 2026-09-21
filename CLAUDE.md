@@ -54,6 +54,7 @@ Run the full sweep before pushing anything - it is the same list CI runs, in the
 .\tools\Test-CoreTemplates.ps1
 .\tools\Test-SetMemoryJunctions.ps1
 .\tools\Test-Automation.ps1
+.\tools\Test-CheckUpdates.ps1
 .\tools\Test-Stack.ps1
 .\tools\Test-Docs.ps1
 .\tools\Test-AssertNoControlBytes.ps1

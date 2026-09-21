@@ -39,6 +39,14 @@ jobs:
           .\tools\Test-Automation.ps1
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
+      # The update check against a stubbed CLI: every exit state, the sandboxed-host
+      # resolution, and the catalogue the 5.1 parser rejects.
+      - name: Update check behaviour
+        shell: powershell
+        run: |
+          .\tools\Test-CheckUpdates.ps1
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
       - name: Stack and root assertions
         shell: powershell
         run: |
