@@ -11,18 +11,36 @@ Seven different jobs that people collapse into one or two, and should not.
 | Memory index drift | `Assert-MemoryIndex.ps1` | is every memory's index line still its `description`, verbatim, within the cap and safe to parse as YAML? |
 | Plan staleness | `Assert-PlanFreshness.ps1` | is any active `PLAN.md` older than the threshold, or based on a commit `HEAD` no longer descends from? |
 | Vault health | `Invoke-VaultLint.ps1` | orphans, stubs, real dangling links - the mechanical half of the vault's Lint operation |
+| Errata propagation | `Assert-ErrataPropagation.ps1` | does a value marked superseded in one place still appear, unmarked, somewhere else? |
 
 None covers another, and none covers the sanitization gate in `tools/`, which looks for
-identity and location rather than credentials. Eight gates, eight enumerations - and each is
+identity and location rather than credentials. Nine gates, nine enumerations - and each is
 worth exactly what it enumerates. Four were promoted from a private practice after a second
 machine audited this repository and pointed out that the weekly routine asked the reader to
 do by hand what the practice had already automated; the memory-index gate followed when that
 practice measured its own index and found the hooks had drifted from the descriptions they
-were meant to repeat.
+were meant to repeat; the errata gate followed it, once the governance rule it enforces had
+been written down here without the mechanism that makes it hold.
 
-Each of the five has a suite in `tools/` that runs in CI and proves the gate **fails** on a
+Each of the six has a suite in `tools/` that runs in CI and proves the gate **fails** on a
 planted defect before proving it passes on a clean fixture. A gate seen only passing is not
 evidence.
+
+## The errata gate expects a convention, and will tell you when it has none
+
+`Assert-ErrataPropagation.ps1` is the only gate here whose default answer on a fresh
+repository is `2`, and that is correct rather than broken: with no errata marker carrying a
+numeric value there is nothing to propagate, so there is nothing measured, and saying `0`
+would be a clean bill of health issued without an examination. It becomes useful the moment
+a corpus starts marking superseded values - and it needs that corpus's own convention,
+because `-MarkerPattern` defaults to English words and a marker written in another language
+is invisible to it.
+
+That is not a footnote. Pointed at a corpus whose markers read *refutada* rather than
+*refuted*, the gate reported eight confident findings that were entirely an artifact of the
+mismatch; the same corpus, swept with its own pattern, is clean. Read the corpus's
+convention before measuring it, which is the corollary in family 3 of the lessons file, and
+is worth re-reading every time a scanner produces a number about someone else's text.
 
 ## The exit-code contract
 

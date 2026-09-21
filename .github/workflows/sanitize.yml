@@ -91,6 +91,12 @@ jobs:
           .\tools\Test-InvokeVaultLint.ps1
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
+      - name: Errata-propagation gate
+        shell: powershell
+        run: |
+          .\tools\Test-AssertErrataPropagation.ps1
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
       - name: Corrections-log union
         shell: powershell
         run: |

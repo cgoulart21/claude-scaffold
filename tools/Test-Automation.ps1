@@ -286,19 +286,29 @@ Assert-True 'verification README exists' ($verification.Length -gt 0)
 Assert-True 'the exit-code contract is stated'   ($verification -match '(?i)exit')
 Assert-True 'snapshot-first is explained'        ($verification -match '(?i)snapshot')
 
-foreach ($name in @('Invoke-Gitleaks.ps1', 'Assert-Baseline.ps1', 'Assert-NoControlBytes.ps1', 'Assert-MemoryLinks.ps1', 'Assert-MemoryIndex.ps1', 'Assert-PlanFreshness.ps1', 'Invoke-VaultLint.ps1')) {
-    $path = Join-Path $AutomationRoot "verification\$name"
-    if (Test-Path -LiteralPath $path -PathType Leaf) {
-        $nonAscii = @([IO.File]::ReadAllBytes($path) | Where-Object { $_ -gt 127 }).Count
-        Assert-True "ascii-only: $name" ($nonAscii -eq 0)
-        $parseErrors = $null
-        [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$null, [ref]$parseErrors) | Out-Null
-        Assert-True "parses: $name" ($null -eq $parseErrors -or $parseErrors.Count -eq 0)
-    }
-    else {
-        Assert-True "ascii-only: $name (file missing)" $false
-        Assert-True "parses: $name (file missing)"     $false
-    }
+# ENUMERATE THE DIRECTORY, do not list the files. This loop used to carry a hardcoded list
+# of seven names, and a gate added later was simply not checked: the suite stayed green
+# having never read the new file. That is this repository's own sub-pattern - a gate is
+# worth exactly what it enumerates, and missing coverage shows up as green, never as FAIL -
+# committed by the suite that teaches it. The required list below still exists, for the
+# opposite failure: a gate DELETED would otherwise silently reduce the coverage to nothing.
+$required = @('Invoke-Gitleaks.ps1', 'Assert-Baseline.ps1', 'Assert-NoControlBytes.ps1',
+    'Assert-MemoryLinks.ps1', 'Assert-MemoryIndex.ps1', 'Assert-PlanFreshness.ps1',
+    'Invoke-VaultLint.ps1', 'Assert-ErrataPropagation.ps1')
+$verificationDir = Join-Path $AutomationRoot 'verification'
+$present = @(Get-ChildItem -LiteralPath $verificationDir -File -Filter '*.ps1' -ErrorAction SilentlyContinue |
+    Sort-Object Name)
+Assert-True 'the verification directory holds scripts to check' ($present.Count -gt 0)
+foreach ($name in $required) {
+    Assert-True "present: $name" ($present.Name -contains $name)
+}
+foreach ($file in $present) {
+    $name = $file.Name
+    $nonAscii = @([IO.File]::ReadAllBytes($file.FullName) | Where-Object { $_ -gt 127 }).Count
+    Assert-True "ascii-only: $name" ($nonAscii -eq 0)
+    $parseErrors = $null
+    [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$null, [ref]$parseErrors) | Out-Null
+    Assert-True "parses: $name" ($null -eq $parseErrors -or $parseErrors.Count -eq 0)
 }
 
 # The gitleaks binary is not in CI, so the exit-code mapping is asserted on the source:
