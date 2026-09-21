@@ -140,6 +140,24 @@ had not read this file. The rule of three states was rediscovered at seven a day
 what this family predicts: the mistake is cheap to make and expensive to notice, and whoever
 has not named it repeats it until they do.
 
+**A new gate is born wrapped.** In one repository an exception reached the finding code
+three times, across two gates: a path test that threw in the link checker, then an invalid
+name and an unreadable file in the index checker. Each was found and fixed on its own, which
+is the signature of a rule that exists as prose and not as a habit. The habit that ends it is small: a new gate's body
+goes in a try/catch that exits `2` **from the first line you write**, not after the first
+time it bites. And give the regression fixture the defect more than once - a scanner that
+reported every finding on line 1 passed a suite where each fixture contained exactly one
+planted defect.
+
+**Green because of the language your machine speaks.** A test proving "no raw exception
+leaked" asserted on the word `Exception`. That word appears in the English runtime wrapper;
+on the author's machine the wrapper is translated, so the assertion matched nothing and the
+test went green for the wrong reason - then failed in CI, in English, where the wrapper
+matched and the "impossible" case was real. This is family 8 living inside a test rather
+than inside data. Test evidence has to be what is identical in every locale: the method name
+in the wrapper, a stable error identifier, the named file - never a runtime's prose. The
+gate itself was changed to print the **inner** exception, without the translated wrapper.
+
 ---
 
 ## 3. Internal consistency does not prove a correct binding
@@ -172,6 +190,37 @@ release best, which made the upgrade look obvious; that release had an open regr
 rejected a whole class of input. It surfaced only by running both versions over a real
 corpus and checking against an independent extractor, which reversed the ranking. A number
 published by whoever wrote the code is the same assumption measuring itself.
+
+**The worst case is one source, and nothing independent at all.** Every shape above has two
+sources sharing an assumption. This one has a single source - your own extractor - and it is
+more dangerous, because *repetition cannot catch it*: repeating the measurement calls the
+same extractor and returns the same number.
+
+A routine audit measured the body length of two hundred pages to find which were thin. The
+extractor isolated the body with one regular expression spanning the whole document; because
+the dot matched newlines, the non-greedy match closed at the first horizontal rule **in the
+body** rather than at the end of the frontmatter. Every page silently lost its most
+substantial section before being counted. The report that came out was not noise - it was
+coherent: a ranking, a correlation ("the most-cited pages are the thinnest"), and a
+recommended remedy. The real numbers were the exact inverse, the recommended remedy was to
+rewrite seven pages that did not need it, and nothing in the output looked wrong.
+
+What broke the spell was opening the first page slated for rewriting. It had tables and four
+sections where the report promised ninety-seven words.
+
+**The counter-move is one item.** Before acting on an extracted metric, open **one** item of
+the corpus and check the number against it by hand. One item is enough, it costs seconds,
+and it is the only step in the chain that does not go through the thing that might be
+broken. Two design decisions follow, and both are cheap: cut structured headers **line by
+line** rather than with a pattern that can span the document, and never let a single
+expression be the only thing standing between raw text and a number you will act on.
+
+A corollary with the same root: **before running an integrity check over someone else's
+corpus, read that corpus's own convention for the relation you are about to measure.** A
+link checker counted only inline wiki-links and reported a thousand-word source page, cited
+by twelve others, as an orphan - that corpus declares source-to-concept links in a
+frontmatter field, with a bare name. The scanner's definition of the relation was not the
+corpus's definition, and the finding it produced was confident and wrong.
 
 ---
 

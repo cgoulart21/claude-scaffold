@@ -53,6 +53,27 @@ something you already wrote, every uncorrected copy keeps misinforming on its ow
 the rule with the longest tail: it only reaches surfaces someone remembers exist, which is
 why publishing anything means recording where you put it, in the same turn.
 
+That pointer solves one failure and not the other. A practice that had already amended this
+rule twice hit it a third time, and the third was a different mechanism: the stale copies
+were **two sibling pages inside the same repository**, reachable by a plain text search
+since the day the correction was written. Nobody forgot they existed - nobody *looked*.
+A pointer answers "which surfaces are there"; it cannot answer "where else does the old
+value still appear". So the rule has two halves, and you need both: **record where you
+published, and sweep the repository for the superseded value before closing the task.**
+
+The sweep is cheap to mechanise, and the shape that pays is counter-intuitive. Comparing
+values between pages is expensive and noisy - in one corpus a broad pass returned seventy
+false positives from a single class (supply rails: 3.3 V, 5 V and 12 V legitimately coexist,
+so a unit alone does not identify a quantity), while a high-precision pass found nothing.
+What found the real defect was neither: it was looking for a claim already **marked** as
+superseded being asserted somewhere else **without the mark**. When a corpus has errata
+discipline, the strongest signal is not disagreement between pages - it is *the mark that
+did not propagate*. And the first time that gate ran it caught an imprecise erratum of its
+author's own, written half an hour earlier: a set of three values declared refuted when the
+source said one had fallen and the other two were confirmed and refined. Declaring a *set*
+invalid is a stronger claim than declaring one member of it invalid, and the difference
+changes what the reader does.
+
 ## Writing your own
 
 Three things make the difference between an instruction file that shapes behaviour and one
