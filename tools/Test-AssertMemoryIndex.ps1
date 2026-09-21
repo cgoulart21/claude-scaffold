@@ -217,7 +217,14 @@ try {
     $lock = [IO.File]::Open((Join-Path $d 'a.md'), [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::None)
     try { $r = Invoke-Gate @('-MemoryRoot', $d) } finally { $lock.Dispose() }
     Assert-True 'a locked memory file exits 2, not 1' ($r.Exit -eq 2) "exit [$($r.Exit)]; $($r.Out)"
-    Assert-True 'and the output says COULD NOT VERIFY, with no raw exception' ($r.Out -match 'COULD NOT VERIFY' -and $r.Out -notmatch 'Exception') $r.Out
+    # Locale-independent evidence: the line names the locked file, carries no method-call
+    # wrapper (which names ReadAllText in every language) and no raw error record (whose
+    # FullyQualifiedErrorId label is never localised). The first version asserted -notmatch
+    # 'Exception' and passed on a Portuguese host, where the wrapper reads "Excecao ao
+    # chamar", then failed on the English CI runner. A test that depends on the locale of
+    # the machine that wrote it is green for the wrong reason.
+    Assert-True 'and the output says COULD NOT VERIFY, names the file, and carries no wrapper or raw error record' `
+        ($r.Out -match 'COULD NOT VERIFY' -and $r.Out -match 'a\.md' -and $r.Out -notmatch 'ReadAllText' -and $r.Out -notmatch 'FullyQualifiedErrorId') $r.Out
 }
 finally {
     foreach ($d in $script:Temps) { Remove-Item -LiteralPath $d -Recurse -Force -ErrorAction SilentlyContinue }

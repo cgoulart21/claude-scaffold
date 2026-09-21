@@ -175,7 +175,11 @@ try {
 }
 catch {
     # A break (an unreadable file, a disk or permission error) must never exit 1: 1 means
-    # "finding", and whoever reads only the exit code cannot tell the two apart.
-    Write-Output "COULD NOT VERIFY: $($_.Exception.Message)"
+    # "finding", and whoever reads only the exit code cannot tell the two apart. The message
+    # is the INNER exception's: PowerShell's method-call wrapper ("Exception calling
+    # ReadAllText...") is localised and hides the cause.
+    $reason = $_.Exception.Message
+    if ($null -ne $_.Exception.InnerException) { $reason = $_.Exception.InnerException.Message }
+    Write-Output "COULD NOT VERIFY: $reason"
     exit 2
 }
