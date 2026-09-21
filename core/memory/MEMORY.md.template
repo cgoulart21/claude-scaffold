@@ -5,17 +5,19 @@ do not belong here - they age into noise and push the useful lines off the first
 
 **This file is authored, not mirrored.** It is written by hand and grouped the way you
 actually think about your tools. A sync script may warn that a file on disk has no line
-here; it must never write the line for you. The judgement is the whole value.
+here; it must never write the line for you. The judgement is the whole value. The hook
+after each link is the file's `description`, verbatim - one relevance text per memory -
+and `Assert-MemoryIndex.ps1` fails when the two differ.
 
 **Method and verification discipline do not live here.** They go to
 `<LESSONS-PATH>/LESSONS.md`. This file is tools and projects only.
 
 ## Tool gotchas
 
-<!-- One line each: [Title](file-name.md) - the hook, short enough to scan. Example:
+<!-- One line each: [Title](file-name.md) - the memory's `description`, verbatim, on ONE
+line (200 characters at most, a plain YAML scalar; see README.md). Example:
 
-- [Some CLI: pinned version](some-cli-setup.md) - pinned at 1.2.3; 1.2.4 rejects the input
-  format this project uses. Never invoke it through a runner that pulls latest.
+- [Some CLI: pinned version](some-cli-setup.md) - pinned at 1.2.3; 1.2.4 rejects this project's input format, and a runner that pulls latest gets the broken one
 
 Delete this comment once you have a real line. -->
 

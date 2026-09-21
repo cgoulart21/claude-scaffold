@@ -15,12 +15,22 @@
   WHAT IT REPORTS. file:line and the byte's name. The position is what makes it
   findable; a filename alone sends you reading the whole file with cat -A.
 
-  WHAT IT LEAVES ALONE. 0x09 (TAB), 0x0A, 0x0D - legitimate in text. Accept the
-  cost: `\t` corrupts a path the same way and a TAB is indistinguishable from an
-  intended one. The gate is worth what it enumerates.
+  WHAT IT LEAVES ALONE. 0x09 (TAB) and 0x0A - legitimate in text. Accept the cost:
+  `\t` corrupts a path the same way and a TAB is indistinguishable from an intended
+  one. The gate is worth what it enumerates.
+
+  AND THE LONE CR. 0x0D is legitimate only as half of CRLF. Not followed by 0x0A - or
+  the last byte of the file - it is the residue of an insertion into a CRLF file
+  followed by a normalisation to LF, and it hides: a stray CR at the start of a line
+  made that line invisible to every ^-anchored parser and to cat itself, and the first
+  version of this gate reported the file clean because 0x0D was off its list (a gate
+  over the memory index caught it instead). A file with bare-CR line endings now fails
+  on every line, one finding per line; if you keep one on purpose, -KnownException is
+  where it goes. Both trees this gate first ran on were measured lone-CR-free by a byte
+  scan before the rule changed, so the finding was not born red.
 
   EXIT CONTRACT (three states):
-    0  scanned, no control byte found
+    0  scanned, no control byte and no lone CR found
     1  scanned and FOUND one or more (each printed as FAIL file:line byte)
     2  could NOT verify (root missing, no eligible text file)
   No break path reaches 1: an unreadable file is reported and skipped, never
@@ -89,6 +99,17 @@ try {
         for ($i = 0; $i -lt $bytes.Length; $i++) {
             $b = $bytes[$i]
             if ($b -eq 10) { $line++; continue }
+            if ($b -eq 13) {
+                # CR is legitimate only as half of CRLF; on its own it is a finding (see the
+                # header). And it ENDS a line: the counter advances after the finding, or a
+                # bare-CR file reports every finding on line 1.
+                if (($i + 1) -ge $bytes.Length -or $bytes[$i + 1] -ne 10) {
+                    Write-Finding ("{0}:{1} lone CR (0x0D not followed by 0x0A)" -f $rel, $line)
+                    $findings++
+                    $line++
+                }
+                continue
+            }
             if ($bad.ContainsKey([int]$b)) {
                 Write-Finding ("{0}:{1} control byte {2} (0x{3})" -f $rel, $line, $bad[[int]$b], $b.ToString('X2'))
                 $findings++
@@ -104,7 +125,7 @@ try {
         Write-Output "$findings control byte(s) found. Repair the byte ALONE - never rewrite the file, and verify the intended value before writing it."
         exit 1
     }
-    Write-Output 'OK  no control byte 0x00/07/08/0B/0C.'
+    Write-Output 'OK  no control byte 0x00/07/08/0B/0C and no lone CR.'
     exit 0
 }
 catch {

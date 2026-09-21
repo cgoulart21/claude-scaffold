@@ -62,8 +62,37 @@ nothing you could not get from `ls`. An authored index carries the judgement - w
 gotchas matter, which belong together, which one you would want surfaced first - and that
 judgement is the only part worth reading at the start of a session.
 
-A sync script may warn you that a file on disk has no line in the index. It should never
-write that line for you.
+A sync script may warn you that a file on disk has no line in the index, and the gate in
+the next section fails on it. Neither should ever write that line for you.
+
+## One relevance text per memory: the index line is the description
+
+Every memory file opens with a `description:` in its frontmatter - the one line the host
+reads to decide whether the memory is relevant before it opens the file. The index line for
+that memory repeats the same text, verbatim, after the link:
+
+```
+- [Title](file-name.md) - <the description, character for character>
+```
+
+Two texts that both claim to answer "is this the one I need?" drift apart. In one practice
+the index had grown a second, longer hook per memory, written apart from the description
+and different from it in all but one file: the index had turned into a second body, not an
+index. One text, held to two mechanical rules and one editorial one:
+
+1. **It fits in 200 characters.** Longer than that it is content, and content belongs in
+   the body.
+2. **It is a plain YAML scalar.** No wrapping quotes, no `: ` (colon followed by a space),
+   no ` #`, no YAML-special first character, no trailing colon. The host parses the
+   frontmatter as YAML, and a description the parser rewrites or rejects is no longer the
+   text the index repeats. A colon *without* a space after it (a time, a URL) is fine.
+3. **It reads as trigger plus answer** - when you would reach for it, and what you would
+   find. No gate can check this one.
+
+Grouping and order stay yours. `automation/verification/Assert-MemoryIndex.ps1` checks the
+first two rules and the verbatim match: it fails when a memory has no line, a line has no
+file, a hook differs from its description, or a description breaks a rule. It never writes
+the line for you.
 
 ## Files here
 

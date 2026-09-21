@@ -80,12 +80,35 @@ try {
         Assert-True ("the clean neighbour is NOT accused ({0})" -f $case.Name) ($r.Out -notmatch 'FAIL\s+ok\.md') $r.Out
     }
 
-    Write-Output 'Group 3 - TAB, LF and CR are legitimate'
+    Write-Output 'Group 3 - TAB, LF and CRLF are legitimate'
     $tabs = New-Fixture @{ 'tab.md' = "col1`tcol2`r`nline`n" }
     $r = Invoke-Gate @('-Root', $tabs, '-NoKnownException')
-    Assert-True 'TAB/CR/LF do not fail' ($r.Exit -eq 0) $r.Out
+    Assert-True 'TAB/CRLF/LF do not fail' ($r.Exit -eq 0) $r.Out
 
-    Write-Output 'Group 4 - a declared exception'
+    Write-Output 'Group 4 - state 1: a lone CR (0x0D not followed by 0x0A) fails, and the finding names file:line'
+    # CR is legitimate only as half of CRLF. A stray one at the start of a line - the residue of
+    # an insertion into a CRLF file followed by a normalisation to LF - made that line invisible
+    # to every ^-anchored parser and to cat itself, and the first version of this gate reported
+    # the file clean because 0x0D was not on its list. The CRLF neighbour proves the legitimate
+    # half stays legitimate.
+    $cr = New-Fixture @{ 'cr.md' = "line one`nline two`r`n`rline three`n"; 'ok.md' = "a`r`nb`r`n" }
+    $r = Invoke-Gate @('-Root', $cr, '-NoKnownException')
+    Assert-True 'a lone CR fails with exit 1' ($r.Exit -eq 1) "exit [$($r.Exit)]; $($r.Out)"
+    Assert-True 'the finding names cr.md line 3' ($r.Out -match 'FAIL\s+cr\.md:3') $r.Out
+    Assert-True 'the finding says lone CR' ($r.Out -match 'lone CR') $r.Out
+    Assert-True 'the CRLF neighbour is NOT accused' ($r.Out -notmatch 'FAIL\s+ok\.md') $r.Out
+    # A CR as the last byte of the file has no LF after it, so it is lone too.
+    $crEnd = New-Fixture @{ 'end.md' = "line one`r" }
+    $r = Invoke-Gate @('-Root', $crEnd, '-NoKnownException')
+    Assert-True 'a CR as the last byte is lone too (exit 1, end.md line 1)' ($r.Exit -eq 1 -and $r.Out -match 'FAIL\s+end\.md:1') "exit [$($r.Exit)]; $($r.Out)"
+    # A bare-CR file (classic Mac): every CR is lone AND ends a line, so the findings must land
+    # on DISTINCT lines (1, 2, 3), not all on line 1 - the counter advanced only on LF and every
+    # finding named line 1.
+    $mac = New-Fixture @{ 'mac.md' = "one`rtwo`rthree`r" }
+    $r = Invoke-Gate @('-Root', $mac, '-NoKnownException')
+    Assert-True 'a bare-CR file: three findings on three distinct lines (1, 2, 3)' ($r.Exit -eq 1 -and $r.Out -match 'FAIL\s+mac\.md:1' -and $r.Out -match 'FAIL\s+mac\.md:2' -and $r.Out -match 'FAIL\s+mac\.md:3') $r.Out
+
+    Write-Output 'Group 5 - a declared exception'
     $exc = New-Fixture @{ 'dirty.md' = "x " + [string][char]7 + " y`n" }
     $r1 = Invoke-Gate @('-Root', $exc, '-KnownException', 'dirty.md')
     Assert-True 'a declared exception is exempt and exits 0' ($r1.Exit -eq 0) $r1.Out
@@ -93,17 +116,17 @@ try {
     $r2 = Invoke-Gate @('-Root', $exc, '-NoKnownException')
     Assert-True 'NoKnownException ignores the list and fails again' ($r2.Exit -eq 1) $r2.Out
 
-    Write-Output 'Group 5 - excluded directories are not descended into'
+    Write-Output 'Group 6 - excluded directories are not descended into'
     $ex = New-Fixture @{ 'ok.md' = "fine`n"; 'node_modules\x.md' = "bad " + [string][char]8 + "`n"; 'build\y.md' = "bad " + [string][char]7 + "`n" }
     $r = Invoke-Gate @('-Root', $ex, '-NoKnownException')
     Assert-True 'node_modules and build are skipped' ($r.Exit -eq 0 -and $r.Out -match 'scanned 1 text file') $r.Out
 
-    Write-Output 'Group 6 - .template files are text and are scanned'
+    Write-Output 'Group 7 - .template files are text and are scanned'
     $tpl = New-Fixture @{ 'CLAUDE.md.template' = "a " + [string][char]12 + " b`n" }
     $r = Invoke-Gate @('-Root', $tpl, '-NoKnownException')
     Assert-True 'a byte inside a .template is found' ($r.Exit -eq 1 -and $r.Out -match 'FAIL\s+CLAUDE\.md\.template:1') $r.Out
 
-    Write-Output 'Group 7 - state 2: could not verify, never 1'
+    Write-Output 'Group 8 - state 2: could not verify, never 1'
     $nowhere = Join-Path ([IO.Path]::GetTempPath()) ('nope-' + [guid]::NewGuid().ToString('N'))
     $r = Invoke-Gate @('-Root', $nowhere)
     Assert-True 'a missing root exits 2, not 1' ($r.Exit -eq 2) "exit [$($r.Exit)]"
@@ -112,7 +135,7 @@ try {
     $r = Invoke-Gate @('-Root', $empty)
     Assert-True 'a tree with no eligible file exits 2, not 0' ($r.Exit -eq 2) $r.Out
 
-    Write-Output 'Group 8 - this repository is clean'
+    Write-Output 'Group 9 - this repository is clean'
     $rr = Invoke-Gate @('-Root', $RepoRoot)
     Assert-True 'the scaffold tree exits 0' ($rr.Exit -eq 0) $rr.Out
     Assert-True 'and it scanned a plausible number of files (more than 40)' ($rr.Out -match 'scanned (\d+) text file' -and [int]$Matches[1] -gt 40) $rr.Out

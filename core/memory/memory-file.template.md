@@ -1,6 +1,6 @@
 ---
 name: <short-kebab-case-slug>
-description: <one line, used to decide whether this memory is relevant during recall>
+description: <one line of 200 characters at most - the text the host reads to decide relevance, repeated verbatim as this memory's line in MEMORY.md>
 metadata:
   type: user | feedback | project | reference
 ---
@@ -46,6 +46,11 @@ is confidently retrieved.
 
 **A memory is what was true when it was written.** If one names a file, a function or a
 flag, verify it still exists before acting on it.
+
+**The description is the index line.** One line, 200 characters at most, a plain YAML
+scalar (no wrapping quotes, no `: `, no ` #`), copied verbatim after the link in
+`MEMORY.md`. `automation/verification/Assert-MemoryIndex.ps1` fails when the two differ;
+`README.md` in this folder says why there is only one text.
 
 ## Published surfaces
 

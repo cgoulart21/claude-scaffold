@@ -1,6 +1,6 @@
 # Verification
 
-Six different jobs that people collapse into one or two, and should not.
+Seven different jobs that people collapse into one or two, and should not.
 
 | Concern | Tool here | Question it answers |
 |---|---|---|
@@ -8,16 +8,19 @@ Six different jobs that people collapse into one or two, and should not.
 | Configuration drift | `Assert-Baseline.ps1` | is my setup still the one I decided on? |
 | Silent corruption | `Assert-NoControlBytes.ps1` | did a programmatic write leave a control byte in any text file? |
 | Memory renames | `Assert-MemoryLinks.ps1` | does every `[[wikilink]]` in the memory store still resolve, or is it a declared exception that is still true? |
+| Memory index drift | `Assert-MemoryIndex.ps1` | is every memory's index line still its `description`, verbatim, within the cap and safe to parse as YAML? |
 | Plan staleness | `Assert-PlanFreshness.ps1` | is any active `PLAN.md` older than the threshold, or based on a commit `HEAD` no longer descends from? |
 | Vault health | `Invoke-VaultLint.ps1` | orphans, stubs, real dangling links - the mechanical half of the vault's Lint operation |
 
 None covers another, and none covers the sanitization gate in `tools/`, which looks for
-identity and location rather than credentials. Seven gates, seven enumerations - and each is
-worth exactly what it enumerates. The last four were promoted from a private practice after a
-second machine audited this repository and pointed out that the weekly routine asked the
-reader to do by hand what the practice had already automated.
+identity and location rather than credentials. Eight gates, eight enumerations - and each is
+worth exactly what it enumerates. Four were promoted from a private practice after a second
+machine audited this repository and pointed out that the weekly routine asked the reader to
+do by hand what the practice had already automated; the memory-index gate followed when that
+practice measured its own index and found the hooks had drifted from the descriptions they
+were meant to repeat.
 
-Each of the four has a suite in `tools/` that runs in CI and proves the gate **fails** on a
+Each of the five has a suite in `tools/` that runs in CI and proves the gate **fails** on a
 planted defect before proving it passes on a clean fixture. A gate seen only passing is not
 evidence.
 
@@ -60,13 +63,22 @@ scope for the rule is too narrow: a rule that says "scan after appending to the 
 every other file. Scan **all** tracked text, not the files you were thinking about when you
 wrote the rule.
 
-Scan for `0x00`, `0x07`, `0x08`, `0x0B`, `0x0C`. Leave TAB, LF and CR alone - they are
+Scan for `0x00`, `0x07`, `0x08`, `0x0B`, `0x0C`, and for a `0x0D` that is not followed by
+`0x0A`: CR is legitimate only as half of CRLF, and a lone one is the residue of an insertion
+into a CRLF file followed by a normalisation to LF. Leave TAB and LF alone - they are
 legitimate, and accept what that costs you: `\t` corrupts a path exactly the same way,
 and a TAB is indistinguishable from an intended one. **The gate is worth what it
 enumerates.** The corruption this section describes was found by hand, in the sentence
 above, *after* the byte gate reported the file clean - because the survivor was a TAB. Report `file:line`, not just the filename, because the byte's position is the
 only thing that makes it findable. Repair the byte alone and verify the intended value
 before writing it: fixing a corrupt path to a *different* wrong path is a real outcome.
+
+The lone CR earned its place the same way. A stray `0x0D` at the start of a line in a memory
+index made that line invisible to every parser anchored on `^` and to `cat` itself; the byte
+gate reported the file clean, because CR sat on its leave-alone list, and the gate over the
+index caught it instead. Before the rule changed, both trees it runs on were measured free of
+lone CRs, so the new finding was not born red - and a file that legitimately ends its lines
+with a bare CR goes on the exception list, with the reason next to it.
 
 One caution learned the hard way: order the checks before any trimming. A gate that strips
 trailing dots before testing for an ellipsis will eat the ellipsis and then report a finding
@@ -157,11 +169,12 @@ and "green" from an unknown version is the most expensive kind of green.
 .\automation\verification\Assert-Baseline.ps1
 .\automation\verification\Assert-NoControlBytes.ps1 -Root C:\Path\To\your-repo
 .\automation\verification\Assert-MemoryLinks.ps1 -MemoryRoot <MEMORY-STORE> -KnownDangling not-written-yet
+.\automation\verification\Assert-MemoryIndex.ps1 -MemoryRoot <MEMORY-STORE>
 .\automation\verification\Assert-PlanFreshness.ps1 -Root <PROJECTS-ROOT>
 .\automation\verification\Invoke-VaultLint.ps1 -VaultRoot <VAULT-ROOT>
 ```
 
-The three that take a root are **required** to be told it: a gate that guessed where your
+The four that take a root are **required** to be told it: a gate that guessed where your
 store or your projects live would report a clean sweep of the wrong folder, and an empty
 sweep must never read as a clean one (all of them exit `2` on an empty result, not `0`).
 
@@ -170,6 +183,13 @@ to a memory not yet written, so a strict gate would be born red; what the gate c
 *new* dangling link. Every exception you declare must stay true: an entry that resolves again,
 or that nobody cites any more, fails the run - an exception list that does not maintain itself
 goes back to lying quietly.
+
+`Assert-MemoryIndex` checks the contract written in `core/memory/README.md`: one index line
+per memory, the hook after the link equal to the file's `description` character for
+character, the description within `-MaxLength` (200 by default) and a plain YAML scalar. It
+judges neither the wording nor the grouping, and it never writes a line: the index stays
+authored. What it catches is the second relevance text - the hook edited in the index while
+the description stayed behind, or the memory written in a hurry with no line at all.
 
 `Invoke-VaultLint` prints one number it does not judge: comparative claims with no number in
 the sentence. A claim with a number can be checked mechanically; one without can only be
