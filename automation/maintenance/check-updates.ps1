@@ -36,6 +36,12 @@
   printed; the report is still written. 2 wins over 1, because a partial run must
   never read as a clean one; the counts on stdout say what was found anyway.
 
+  The report is UTF-8 without a byte order mark, with a final newline (the earlier
+  Set-Content -Encoding UTF8 put a BOM on 5.1). Every JSON the script reads - the two
+  CLI listings, the installed record, each catalogue - goes through the same tolerant
+  parser; when the 5.1 parser refused a text and the .NET serializer read it, a note
+  under the CLI lines names the text and the keys it had to drop.
+
   Run it from inside an agent session if your host application is sandboxed:
   a process outside that sandbox sees a different set of global packages, and
   reports "not installed" for things that are.
@@ -78,12 +84,22 @@ function Add-CouldNot { param([string]$Text) $script:couldNot++; $script:lines +
 
 function Get-Field {
     # Property access that answers $null when the object is not an object or the
-    # property is not there, instead of throwing or guessing.
+    # property is not there, instead of throwing or guessing. The value comes back
+    # behind the comma operator so that an empty list stays an empty list: returned
+    # bare, @() unrolls to nothing and reads as "missing" (reviewer's case, 2026-09-20).
     param($Object, [string]$Name)
     if ($null -eq $Object -or $Object -is [string]) { return $null }
     $property = $Object.PSObject.Properties[$Name]
     if ($null -eq $property) { return $null }
-    return $property.Value
+    return ,$property.Value
+}
+
+function Test-Field {
+    # Whether the property exists at all, which Get-Field cannot say: a section that is
+    # missing, a section that is null and a section that is empty are three facts.
+    param($Object, [string]$Name)
+    if ($null -eq $Object -or $Object -is [string]) { return $false }
+    return ($null -ne $Object.PSObject.Properties[$Name])
 }
 
 function ConvertTo-PSObjectTree {
@@ -131,11 +147,26 @@ function ConvertFrom-JsonTolerant {
     }
 }
 
+function ConvertFrom-JsonNoted {
+    # The tolerant parse, plus a report line when the fallback had to be used: which
+    # text, and how many keys differing only by case were dropped. Every JSON the
+    # script reads goes through here, so the loss is never silent anywhere.
+    param([string]$Text, [string]$What)
+    $fallbackBefore = $script:fallbackParses
+    $droppedBefore = $script:droppedKeys
+    $parsed = ConvertFrom-JsonTolerant $Text
+    if ($script:fallbackParses -gt $fallbackBefore) {
+        $dropped = $script:droppedKeys - $droppedBefore
+        Add-Line "- note: $What needed the fallback parser; $dropped key(s) differing only by case dropped, first spelling kept."
+    }
+    return ,$parsed
+}
+
 function Read-JsonFile {
-    param([string]$Path)
+    param([string]$Path, [string]$What)
     # ReadAllText honours a byte order mark and defaults to UTF-8; Get-Content on 5.1
     # reads a BOM-less file through the ANSI code page.
-    return ,(ConvertFrom-JsonTolerant ([IO.File]::ReadAllText($Path)))
+    return ,(ConvertFrom-JsonNoted -Text ([IO.File]::ReadAllText($Path)) -What $What)
 }
 
 function Invoke-Cli {
@@ -245,13 +276,11 @@ function Get-Catalogue {
             $result.Error = "no marketplace.json at $manifest"
         }
         else {
-            $fallbackBefore = $script:fallbackParses
-            $droppedBefore = $script:droppedKeys
-            try { $result.Data = Read-JsonFile $manifest }
+            try { $result.Data = Read-JsonFile -Path $manifest -What "the catalogue of '$Name'" }
             catch { $result.Error = $_.Exception.Message }
-            if ($null -eq $result.Error -and $script:fallbackParses -gt $fallbackBefore) {
-                $dropped = $script:droppedKeys - $droppedBefore
-                Add-Line "- note: the catalogue of '$Name' needed the fallback parser; $dropped key(s) differing only by case dropped, first spelling kept."
+            # An empty file, or a text that parses to nothing, is not a catalogue either.
+            if ($null -eq $result.Error -and $null -eq $result.Data) {
+                $result.Error = "marketplace.json at $manifest is empty or parsed to nothing"
             }
         }
     }
@@ -328,11 +357,21 @@ else {
         elseif ($listing.Code -ne 0) {
             Add-CouldNot "- COULD NOT LIST the marketplaces (exit $($listing.Code)): $(Get-Complaint $listing)"
         }
+        elseif ([string]::IsNullOrWhiteSpace($listing.Out)) {
+            # On 5.1, '' | ConvertFrom-Json is $null without an error, and @($null) has one
+            # element: an empty listing used to turn every plugin into "marketplace not
+            # configured", class 1 with the wrong advice (reviewer's case, 2026-09-20).
+            Add-CouldNot "- COULD NOT READ the marketplace list: nothing on stdout (exit $($listing.Code))."
+        }
         else {
             # Assign, then wrap: @(f) around a function that protects its array with the
             # comma operator collects that array as ONE element, and a two-plugin list
             # walked as one nameless plugin (found by the suite on 2026-09-20).
-            try { $parsed = ConvertFrom-JsonTolerant $listing.Out; $marketplaces = @($parsed) }
+            try {
+                $parsed = ConvertFrom-JsonNoted -Text $listing.Out -What 'the marketplace list'
+                if ($null -eq $parsed) { Add-CouldNot '- COULD NOT READ the marketplace list: the answer parsed to nothing.' }
+                else { $marketplaces = @($parsed) }
+            }
             catch { Add-CouldNot "- COULD NOT READ the marketplace list: $($_.Exception.Message)" }
         }
     }
@@ -346,8 +385,17 @@ else {
         elseif ($listing.Code -ne 0) {
             Add-CouldNot "- COULD NOT LIST the installed plugins (exit $($listing.Code)): $(Get-Complaint $listing)"
         }
+        elseif ([string]::IsNullOrWhiteSpace($listing.Out)) {
+            # Same trap as the marketplace list: an empty answer used to become one
+            # phantom plugin, "NOT ATTRIBUTABLE", class 1 (reviewer's case, 2026-09-20).
+            Add-CouldNot "- COULD NOT READ the installed list: nothing on stdout (exit $($listing.Code))."
+        }
         else {
-            try { $parsed = ConvertFrom-JsonTolerant $listing.Out; $installed = @($parsed) }
+            try {
+                $parsed = ConvertFrom-JsonNoted -Text $listing.Out -What 'the installed list'
+                if ($null -eq $parsed) { Add-CouldNot '- COULD NOT READ the installed list: the answer parsed to nothing.' }
+                else { $installed = @($parsed) }
+            }
             catch { Add-CouldNot "- COULD NOT READ the installed list: $($_.Exception.Message)" }
         }
     }
@@ -362,14 +410,24 @@ else {
         $recordsComplaint = ''
         $recordPath = Join-Path $PluginsRoot 'installed_plugins.json'
         if (Test-Path -LiteralPath $recordPath -PathType Leaf) {
-            try { $records = Get-Field (Read-JsonFile $recordPath) 'plugins' }
-            catch { $recordsComplaint = "$recordPath could not be read: $($_.Exception.Message)" }
-            if ($null -eq $records -and [string]::IsNullOrEmpty($recordsComplaint)) {
-                $recordsComplaint = "$recordPath has no plugins section"
+            try {
+                $record = Read-JsonFile -Path $recordPath -What 'the installed record'
+                if ($null -eq $record) { $recordsComplaint = "$recordPath is empty or parsed to nothing" }
+                elseif (-not (Test-Field $record 'plugins')) { $recordsComplaint = "$recordPath has no plugins section" }
+                else { $records = Get-Field $record 'plugins' }
             }
+            catch { $recordsComplaint = "$recordPath could not be read: $($_.Exception.Message)" }
         }
         else {
             $recordsComplaint = "no installed_plugins.json under $PluginsRoot"
+        }
+
+        # Read every configured catalogue now, so that any note about the fallback parser
+        # is printed here, under the CLI lines, and not in the middle of the plugin list.
+        if ($null -ne $marketplaces) {
+            foreach ($marketplace in $marketplaces) {
+                $null = Get-Catalogue -Name ([string](Get-Field $marketplace 'name')) -Location ([string](Get-Field $marketplace 'installLocation'))
+            }
         }
 
         foreach ($plugin in $installed) {
@@ -406,12 +464,18 @@ else {
                 Add-CouldNot "$label  COULD NOT COMPARE - the catalogue of '$marketplaceName' is unreadable: $($catalogue.Error)"
                 continue
             }
-            # Test the field before wrapping it: @($null) has one element, so a catalogue
-            # with no plugins section would walk once with a null candidate and report the
-            # plugin as dropped (class 1) where the fact is could-not-compare (class 2).
+            # Three facts, three sentences: a plugins section that is missing or null is
+            # could-not-compare (class 2); an empty one is a catalogue that lists nothing,
+            # and the plugin is then not in it (class 1). Test before wrapping: @($null)
+            # has one element, and walking it once reported the plugin as dropped where
+            # the fact was could-not-compare (reviewer's case, 2026-09-20).
+            if (-not (Test-Field $catalogue.Data 'plugins')) {
+                Add-CouldNot "$label  COULD NOT COMPARE - the catalogue of '$marketplaceName' has no plugins section."
+                continue
+            }
             $pluginList = Get-Field $catalogue.Data 'plugins'
             if ($null -eq $pluginList) {
-                Add-CouldNot "$label  COULD NOT COMPARE - the catalogue of '$marketplaceName' has no plugins section."
+                Add-CouldNot "$label  COULD NOT COMPARE - the plugins section of the catalogue of '$marketplaceName' is null."
                 continue
             }
             $entry = $null
@@ -481,7 +545,7 @@ else {
         $outdated = $null
         $readError = ''
         if ($answer.Ran -and -not [string]::IsNullOrWhiteSpace($answer.Out) -and $answer.Out.Trim() -ne '{}') {
-            try { $outdated = ConvertFrom-JsonTolerant $answer.Out.Trim() }
+            try { $outdated = ConvertFrom-JsonNoted -Text $answer.Out.Trim() -What 'the npm answer' }
             catch { $readError = $_.Exception.Message }
         }
         $registryError = ($null -ne $outdated) -and (Test-NpmErrorShape $outdated)
@@ -491,12 +555,16 @@ else {
     if (-not $answer.Ran) {
         Add-CouldNot "- COULD NOT CHECK: npm could not be started: $($answer.Err)"
     }
-    elseif ([string]::IsNullOrWhiteSpace($answer.Out)) {
+    elseif ([string]::IsNullOrWhiteSpace($answer.Out) -or $answer.Out.Trim() -eq '{}') {
+        # Nothing, or an empty object, is "everything current" only when npm also exited
+        # 0; with any other exit it is the answer of a run that failed (reviewer's case:
+        # {} on stdout, the error on stderr, exit 3).
         if ($answer.Code -eq 0) { Add-Line '- everything current.' }
-        else { Add-CouldNot "- COULD NOT CHECK: npm exited $($answer.Code) with nothing on stdout: $(Get-Complaint $answer)" }
-    }
-    elseif ($answer.Out.Trim() -eq '{}') {
-        Add-Line '- everything current.'
+        else {
+            $what = 'nothing on stdout'
+            if (-not [string]::IsNullOrWhiteSpace($answer.Out)) { $what = 'an empty object on stdout' }
+            Add-CouldNot "- COULD NOT CHECK: npm exited $($answer.Code) with ${what}: $(Get-Complaint $answer)"
+        }
     }
     elseif ($null -eq $outdated) {
         Add-CouldNot "- COULD NOT READ the answer of npm outdated: $readError"

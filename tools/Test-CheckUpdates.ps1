@@ -10,8 +10,8 @@
   Every exit state, and every report branch the stub can reach, is produced at least
   once, including the ones that must fail. The exception is the two "could not run"
   branches that need an executable dying between two commands; they are named here
-  rather than faked. Three of the cases are the exit-class defects a reviewer found
-  on 2026-09-20 with the same kind of stub, kept as regressions.
+  rather than faked. Five of the cases are exit-class defects a reviewer found on
+  2026-09-20, in two rounds, with the same kind of stub; they are kept as regressions.
 #>
 [CmdletBinding()]
 param([string]$ScriptPath)
@@ -60,7 +60,7 @@ function Write-Json {
 function New-AgentStub {
     # A CLI that answers the three commands the script issues, from files, each with
     # its own exit code when a case needs the command to fail.
-    param([string] $Box, [int] $RefreshExit, [int] $MarketplaceListExit, [int] $PluginListExit)
+    param([string] $Box, [int] $RefreshExit, [int] $MarketplaceListExit, [int] $PluginListExit, [switch] $EmptyMarketplaceList, [switch] $EmptyPluginList)
     $path = Join-Path $Box 'agent-stub.cmd'
     $marketplaceList = Join-Path $Box 'marketplace-list.json'
     $pluginList = Join-Path $Box 'plugin-list.json'
@@ -68,8 +68,10 @@ function New-AgentStub {
     if ($RefreshExit -ne 0) { $refresh = "(echo stub: refresh failed, no network 1>&2 & exit $RefreshExit)" }
     $marketplaces = '(type "' + $marketplaceList + '" & exit 0)'
     if ($MarketplaceListExit -ne 0) { $marketplaces = "(echo stub: cannot list marketplaces 1>&2 & exit $MarketplaceListExit)" }
+    if ($EmptyMarketplaceList) { $marketplaces = 'exit 0' }
     $plugins = '(type "' + $pluginList + '" & exit 0)'
     if ($PluginListExit -ne 0) { $plugins = "(echo stub: cannot list plugins 1>&2 & exit $PluginListExit)" }
+    if ($EmptyPluginList) { $plugins = 'exit 0' }
     $lines = @(
         '@echo off',
         'set "A=%~1 %~2 %~3 %~4"',
@@ -142,7 +144,9 @@ function New-Fixture {
         [int] $PluginListExit = 0,
         [string] $MarketplaceListText,
         [switch] $NoMarketplace,
-        [switch] $NoInstallLocation
+        [switch] $NoInstallLocation,
+        [switch] $EmptyMarketplaceList,
+        [switch] $EmptyPluginList
     )
     $box = New-Box
     $marketplaceDir = Join-Path $box 'marketplaces\mp'
@@ -167,7 +171,7 @@ function New-Fixture {
     if ($null -ne $Record) { Write-Json (Join-Path $box 'plugins\installed_plugins.json') $Record }
     return [pscustomobject]@{
         Box     = $box
-        Stub    = (New-AgentStub -Box $box -RefreshExit $RefreshExit -MarketplaceListExit $MarketplaceListExit -PluginListExit $PluginListExit)
+        Stub    = (New-AgentStub -Box $box -RefreshExit $RefreshExit -MarketplaceListExit $MarketplaceListExit -PluginListExit $PluginListExit -EmptyMarketplaceList:$EmptyMarketplaceList -EmptyPluginList:$EmptyPluginList)
         Plugins = (Join-Path $box 'plugins')
         Reports = (Join-Path $box 'reports')
     }
@@ -292,6 +296,21 @@ try {
     $r = Invoke-Check (Get-StandardArgs $f)
     Assert-True 'an unreadable installed list exits 2 and says so' ($r.Exit -eq 2 -and (Get-Report $f) -match 'COULD NOT READ the installed list') $r.Out
 
+    # Reviewer's cases, round two (2026-09-20): on 5.1, '' | ConvertFrom-Json is $null
+    # without an error, and @($null) has one element - an empty listing fabricated
+    # class-1 findings with the wrong advice.
+    $f = New-Fixture -Installed @((New-Installed 'alpha@mp' '1.0.0')) -Catalogue (New-Catalogue @((New-VersionedEntry 'alpha' '1.0.0'))) -EmptyMarketplaceList
+    $r = Invoke-Check (Get-StandardArgs $f)
+    $report = Get-Report $f
+    Assert-True 'a marketplace list with nothing on stdout is could-not-read (exit 2)' ($r.Exit -eq 2 -and $report -match 'COULD NOT READ the marketplace list: nothing on stdout \(exit 0\)') "exit [$($r.Exit)]; $report"
+    Assert-True 'and no plugin is told its marketplace is gone' ($report -cnotmatch 'IS NOT CONFIGURED' -and $report -match 'COULD NOT COMPARE - the marketplace list was not available') $report
+
+    $f = New-Fixture -Installed @((New-Installed 'alpha@mp' '1.0.0')) -Catalogue (New-Catalogue @((New-VersionedEntry 'alpha' '1.0.0'))) -EmptyPluginList
+    $r = Invoke-Check (Get-StandardArgs $f)
+    $report = Get-Report $f
+    Assert-True 'an installed list with nothing on stdout is could-not-read (exit 2)' ($r.Exit -eq 2 -and $report -match 'COULD NOT READ the installed list: nothing on stdout \(exit 0\)') "exit [$($r.Exit)]; $report"
+    Assert-True 'and no phantom plugin is reported' ($report -cnotmatch 'NOT ATTRIBUTABLE') $report
+
     $f = New-Fixture -Installed @((New-Installed 'alpha@mp' '1.0.0')) -Catalogue (New-Catalogue @((New-VersionedEntry 'alpha' '1.0.0'))) -NoInstallLocation
     $r = Invoke-Check (Get-StandardArgs $f)
     Assert-True 'a marketplace without an install location is could-not-compare (exit 2)' ($r.Exit -eq 2 -and (Get-Report $f) -match "COULD NOT COMPARE - the catalogue of 'mp' is unreadable: the marketplace list gives no install location") $r.Out
@@ -320,6 +339,26 @@ try {
     Assert-True 'a catalogue with no plugins section is could-not-compare (exit 2)' ($r.Exit -eq 2 -and $report -match "COULD NOT COMPARE - the catalogue of 'mp' has no plugins section") "exit [$($r.Exit)]; $report"
     Assert-True 'and never a dropped plugin' ($report -cnotmatch 'NOT IN CATALOGUE') $report
 
+    # Three facts, three sentences: a null section, an empty section, an empty file. The
+    # first version said "has no plugins section" for all of them, because Get-Field
+    # handed an empty list back bare and it unrolled to nothing.
+    $f = New-Fixture -Installed @((New-Installed 'alpha@mp' '1.0.0')) -CatalogueText '{"name":"mp","plugins":null}'
+    $r = Invoke-Check (Get-StandardArgs $f)
+    Assert-True 'a null plugins section is could-not-compare, and says null' ($r.Exit -eq 2 -and (Get-Report $f) -match "the plugins section of the catalogue of 'mp' is null") $r.Out
+
+    $f = New-Fixture -Installed @((New-Installed 'alpha@mp' '1.0.0')) -CatalogueText '{"name":"mp","plugins":[]}'
+    $r = Invoke-Check (Get-StandardArgs $f)
+    Assert-True 'an empty plugins section lists nothing, so the plugin is not in it (exit 1)' ($r.Exit -eq 1 -and (Get-Report $f) -match '- alpha@mp : 1\.0\.0  NOT IN CATALOGUE') $r.Out
+
+    $f = New-Fixture -Installed @((New-Installed 'alpha@mp' '1.0.0')) -CatalogueText ' '
+    $r = Invoke-Check (Get-StandardArgs $f)
+    Assert-True 'an empty marketplace.json is could-not-compare, and says empty' ($r.Exit -eq 2 -and (Get-Report $f) -match 'is unreadable: marketplace\.json at .* is empty or parsed to nothing') $r.Out
+
+    $f = New-Fixture -Installed @((New-Installed 'beta@mp' '2.0.0')) -Catalogue (New-Catalogue @((New-PinnedEntry 'beta' $CommitB)))
+    Write-Text (Join-Path $f.Plugins 'installed_plugins.json') ' '
+    $r = Invoke-Check (Get-StandardArgs $f)
+    Assert-True 'an empty installed record is named as empty, not as missing' ($r.Exit -eq 2 -and (Get-Report $f) -match 'installed commit is unknown: .*installed_plugins\.json is empty or parsed to nothing') $r.Out
+
     $f = New-Fixture -Installed @((New-Installed 'alpha@mp' '1.0.0'), (New-Installed 'beta@mp' '2.0.0')) `
                      -Catalogue (New-Catalogue @((New-VersionedEntry 'alpha' '1.1.0'), (New-PinnedEntry 'beta' $CommitB)))
     $r = Invoke-Check (Get-StandardArgs $f)
@@ -344,6 +383,14 @@ try {
     # -cnotmatch: the report's own footer says "Could not check: 0", and -notmatch ignores case.
     Assert-True 'the plugin in that catalogue is compared, not "not comparable"' ($report -match '- alpha@mp : 1\.0\.0  \(current\)' -and $report -cnotmatch 'COULD NOT') $report
     Assert-True 'the loss is named: which catalogue, how many keys' ($report -match "- note: the catalogue of 'mp' needed the fallback parser; 1 key\(s\) differing only by case dropped") $report
+    Assert-True 'and the note sits under the CLI lines, before the plugins' ($report.IndexOf('- note: the catalogue') -gt 0 -and $report.IndexOf('- note: the catalogue') -lt $report.IndexOf('- alpha@mp')) $report
+
+    # The same note for a listing: every JSON the script reads goes through the same parser.
+    $f = New-Fixture -Installed @((New-Installed 'alpha@mp' '1.0.0')) -Catalogue (New-Catalogue @((New-VersionedEntry 'alpha' '1.0.0')))
+    $listText = '[{"name":"mp","source":"github","repo":"example/mp","installLocation":"' + ((Join-Path $f.Box 'marketplaces\mp') -replace '\\', '\\') + '","map":{".c":1,".C":2}}]'
+    Write-Text (Join-Path $f.Box 'marketplace-list.json') $listText
+    $r = Invoke-Check (Get-StandardArgs $f)
+    Assert-True 'a marketplace list that needs the fallback gets the same note, and the run is still clean' ($r.Exit -eq 0 -and (Get-Report $f) -match '- note: the marketplace list needed the fallback parser; 1 key\(s\)') "exit [$($r.Exit)]; $($r.Out)"
     # Control, run in the same engine the script runs under: if that parser accepted the
     # planted text, the case above would have proved nothing about the fallback.
     $controlFile = Join-Path $f.Box 'duplicate-keys.json'
@@ -402,6 +449,14 @@ try {
     $report = Get-Report $current
     Assert-True 'nothing on stdout with a non-zero exit is could-not-check (exit 2)' ($r.Exit -eq 2) "exit [$($r.Exit)]; $report"
     Assert-True 'naming the exit and the first stderr line' ($report -match 'COULD NOT CHECK: npm exited 1 with nothing on stdout: npm ERR! node failed before json mode') $report
+
+    # Reviewer's case, round two: {} on stdout with the error on stderr and a non-zero exit
+    # used to read as "everything current" with exit 0, the sibling of the case above.
+    $npmDir = Join-Path $current.Box 'npm-empty-object-failed'
+    New-NpmStubBody $npmDir "@echo off`r`necho npm ERR! registry timeout 1>&2`r`necho {}`r`nexit 3`r`n"
+    $r = Invoke-Check (Get-StandardArgs $current -WithNpm) ($npmDir + ';' + $BarePath)
+    $report = Get-Report $current
+    Assert-True 'an empty object with a non-zero exit is could-not-check (exit 2)' ($r.Exit -eq 2 -and $report -match 'COULD NOT CHECK: npm exited 3 with an empty object on stdout: npm ERR! registry timeout') "exit [$($r.Exit)]; $report"
 
     # Reviewer's case, 2026-09-20: a global package literally named "error" used to be read
     # as a registry failure, retried, and its update swallowed.
