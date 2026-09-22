@@ -98,8 +98,9 @@ Assert-True "every wired hook script exists on disk [$($missing -join '; ')]" ($
 # the real guard printed BLOCKED and the caller received exit 1 through -Command, exit 2
 # through bash -c. The host reads 2 as "block" and 1 as "non-blocking error, continue":
 # the guard becomes a banner. A second machine that had carried the form for six weeks
-# saw a force push and a hard reset run under that banner. pwsh 7 is not yet measured;
-# the bash form does not depend on it. Single form, therefore: bash-default (no "shell")
+# saw a force push and a hard reset run under that banner. pwsh 7.6.6, measured on that
+# machine the same day, flattens the same way; no PowerShell path delivers the 2. Single
+# form, therefore: bash-default (no "shell")
 # with $USERPROFILE - and the gate, not the reader, is what keeps the other form out.
 # The two spellings are disjoint in text: "$env:USERPROFILE" has no "$USERPROFILE" in it.
 $mispaired = @()

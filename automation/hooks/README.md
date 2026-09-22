@@ -107,8 +107,9 @@ valid force-push event: through `bash -c` the caller receives exit 2 (block); th
 BLOCKED banner. A second machine that had carried that form for six weeks confirmed it by
 behaviour: a force push and a hard reset both ran in a fixture, guard logic intact when fed
 directly. The `review-before-commit` reminder kept working the whole time - it needs only
-stdout and exit 0 - which is what hid the hole. Whether `pwsh` 7 flattens the same way is
-not yet measured; the bash pairing does not depend on the answer. Two earlier versions of
+stdout and exit 0 - which is what hid the hole. `pwsh` 7.6.6, measured on that second
+machine the same day, flattens the same way: no PowerShell path delivers the 2, and the bash
+pairing never depended on which shell the host picked. Two earlier versions of
 this example were each half-right: one used `$env:USERPROFILE` under no shell (works under
 neither), the next added `"shell": "powershell"` (starts, but cannot block).
 `Assert-Baseline.ps1` in `../verification/` fails on the powershell form for this reason.
