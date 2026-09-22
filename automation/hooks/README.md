@@ -96,12 +96,22 @@ not start, and a guard that does not start does not block, with no warning.
 
 Use `$USERPROFILE` with the **default** shell, as above: wherever there is a Bash tool to
 guard, Git Bash exists to run the hook, so this pairing works on every machine that has
-something to protect. `"shell": "powershell"` with `$env:USERPROFILE` also works - but only
-where the host's PowerShell-7 detection and fallback do, and a second machine measured that
-routing *failing* on 2026-09-20 while the bash form held. Two earlier versions of this
-example were each half-right: one used `$env:USERPROFILE` under no shell (works under
-neither), the next added `"shell": "powershell"` (works only where PowerShell routing does).
-The bash pairing depends on nothing the Bash tool has not already required.
+something to protect. **Do not use `"shell": "powershell"` for a guard, even correctly
+paired with `$env:USERPROFILE`.** An earlier version of this page said that form "also
+works". It runs, but it cannot block: with `"shell": "powershell"` the host executes the
+hook command through `powershell -Command`, and the `-Command` of Windows PowerShell 5.1
+flattens every non-zero exit to 1. Measured on 2026-09-22 by feeding the real guard a
+valid force-push event: through `bash -c` the caller receives exit 2 (block); through
+`powershell -Command` it receives exit 1, with `BLOCKED` printed. The host reads 2 as
+"block" and 1 as "non-blocking error, continue", so the dangerous command runs under a
+BLOCKED banner. A second machine that had carried that form for six weeks confirmed it by
+behaviour: a force push and a hard reset both ran in a fixture, guard logic intact when fed
+directly. The `review-before-commit` reminder kept working the whole time - it needs only
+stdout and exit 0 - which is what hid the hole. Whether `pwsh` 7 flattens the same way is
+not yet measured; the bash pairing does not depend on the answer. Two earlier versions of
+this example were each half-right: one used `$env:USERPROFILE` under no shell (works under
+neither), the next added `"shell": "powershell"` (starts, but cannot block).
+`Assert-Baseline.ps1` in `../verification/` fails on the powershell form for this reason.
 
 Repeat the `PreToolUse` block for every tool name that can run a shell command - on this
 stack that means `Bash` and `PowerShell`. A guard wired to one of them and not the other is

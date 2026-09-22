@@ -90,9 +90,17 @@ Assert-True "every wired hook script exists on disk [$($missing -join '; ')]" ($
 #   $env:USERPROFILE -> PowerShell only (bash makes it ":USERPROFILE")
 #   $USERPROFILE     -> bash only       (PowerShell makes it empty)
 # The host runs a hook in bash when Git Bash is installed, powershell otherwise, unless
-# "shell" says which. So $env: requires shell "powershell"; a bare $USERPROFILE requires
-# NOT shell "powershell". Measured on two machines on 2026-09-20 - the second found the
-# powershell routing itself failing, which is why the recommended pairing is the bash one.
+# "shell" says which. Measured on two machines on 2026-09-20.
+#
+# AND "shell": "powershell" FAILS EVEN WHEN PAIRED CORRECTLY (2026-09-22). With that field
+# the host runs the hook command through 'powershell -Command', and the -Command of
+# Windows PowerShell 5.1 flattens every non-zero exit to 1. Fed a valid force-push event,
+# the real guard printed BLOCKED and the caller received exit 1 through -Command, exit 2
+# through bash -c. The host reads 2 as "block" and 1 as "non-blocking error, continue":
+# the guard becomes a banner. A second machine that had carried the form for six weeks
+# saw a force push and a hard reset run under that banner. pwsh 7 is not yet measured;
+# the bash form does not depend on it. Single form, therefore: bash-default (no "shell")
+# with $USERPROFILE - and the gate, not the reader, is what keeps the other form out.
 # The two spellings are disjoint in text: "$env:USERPROFILE" has no "$USERPROFILE" in it.
 $mispaired = @()
 if ($settings.PSObject.Properties.Name -contains 'hooks') {
@@ -103,13 +111,14 @@ if ($settings.PSObject.Properties.Name -contains 'hooks') {
                 $isPwsh   = ($entry.PSObject.Properties.Name -contains 'shell') -and ([string]$entry.shell -eq 'powershell')
                 $usesEnv  = $cmd -match '\$env:USERPROFILE'
                 $usesBare = $cmd -match '\$USERPROFILE'
-                if ($usesEnv -and -not $isPwsh) { $mispaired += "$eventName (`$env:USERPROFILE needs shell powershell)" }
-                if ($usesBare -and $isPwsh)     { $mispaired += "$eventName (`$USERPROFILE breaks under shell powershell)" }
+                if ($isPwsh)                    { $mispaired += "$eventName (shell powershell cannot block: -Command flattens the exit to 1; use bare `$USERPROFILE with no shell)" }
+                if ($usesEnv -and -not $isPwsh) { $mispaired += "$eventName (`$env:USERPROFILE only resolves in PowerShell, and shell powershell is rejected; use bare `$USERPROFILE with no shell)" }
+                if ($usesBare -and $isPwsh)     { $mispaired += "$eventName (`$USERPROFILE breaks under shell powershell; remove the shell field)" }
             }
         }
     }
 }
-Assert-True "every hook pairs its USERPROFILE spelling with its shell [$($mispaired -join '; ')]" ($mispaired.Count -eq 0)
+Assert-True "every hook uses the bash-default form: bare USERPROFILE, no shell field [$($mispaired -join '; ')]" ($mispaired.Count -eq 0)
 
 Write-Output ''
 Write-Output "PASS $script:Pass  FAIL $script:Fail"
