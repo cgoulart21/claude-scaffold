@@ -327,6 +327,74 @@ try {
         Assert-True -Name 'and no raw error record or localised wrapper leaks into the output' `
             -Condition ($r18.Out -notmatch 'FullyQualifiedErrorId') -Detail $r18.Out
     } finally { $stream.Dispose() }
+
+    # The written markers in capitals. The pattern allowed [Ee]rrata and [Rr]efuted and
+    # nothing else, so a block headed "ERRATA" was not a marker at all: these two corpora
+    # came back "COULD NOT VERIFY" (exit 2) with the stale sibling sitting in them.
+    Write-Output ''
+    Write-Output 'Group 13  a written marker in capitals is still a marker'
+    $c19 = New-Corpus
+    Set-Page -Root $c19 -Rel 'a.md' -Lines (@(
+        '# A', '', 'The coupling was 2.71 units.', '',
+        '> **ERRATA 2026-10-05**: the coupling is 2.72 units, not 2.71.', ''
+    ) + $Filler)
+    Set-Page -Root $c19 -Rel 'b.md' -Lines (@('# B', '', 'The model uses 2.71 units of coupling.', '') + $Filler)
+    $r19 = Invoke-Gate @('-Root', $c19)
+    Assert-True -Name "'ERRATA' in capitals is a marker" `
+        -Condition ($r19.Exit -eq 1 -and $r19.Out -match 'b\.md:3') -Detail $r19.Out
+    $c20 = New-Corpus
+    Set-Page -Root $c20 -Rel 'a.md' -Lines (@(
+        '# A', '', 'The thesis puts the ratio at 19.4 times.', '',
+        '> The 19.4 ratio is REFUTED: re-optimised for each side, it is 3.3.', ''
+    ) + $Filler)
+    Set-Page -Root $c20 -Rel 'b.md' -Lines (@('# B', '', 'A ratio of 19.4 justifies the layout.', '') + $Filler)
+    $r20 = Invoke-Gate @('-Root', $c20)
+    Assert-True -Name "'REFUTED' in capitals is a marker" `
+        -Condition ($r20.Exit -eq 1 -and $r20.Out -match 'b\.md:3') -Detail $r20.Out
+
+    # And what must NOT change: the shouted conventions stay upper-case. A global
+    # IgnoreCase - the obvious fix for the case above - turns this ordinary sentence into an
+    # errata block and accuses the sibling; the last assertion proves the corpus can fail.
+    $c21 = New-Corpus
+    Set-Page -Root $c21 -Rel 'control.md' -Lines (@(
+        '# Control', '', 'The reading was 6.66 units.', '',
+        '> **[SUPERSEDED]** 6.66 is now 6.12.', ''
+    ) + $Filler)
+    Set-Page -Root $c21 -Rel 'prose.md' -Lines (@(
+        '# Prose', '',
+        'The first estimate was superseded in review, a contradiction we kept at 3.33 mm.', '',
+        'The nominal gap stays at 3.33 mm.', ''
+    ) + $Filler)
+    Set-Page -Root $c21 -Rel 'sibling.md' -Lines (@('# Sibling', '', 'The gap of 3.33 mm comes from the drawing.', '') + $Filler)
+    $r21 = Invoke-Gate @('-Root', $c21)
+    Assert-True -Name "lower-case 'superseded' and 'contradiction' in prose are not markers" `
+        -Condition ($r21.Exit -eq 0) -Detail $r21.Out
+    $r21b = Invoke-Gate @('-Root', $c21, '-MarkerPattern',
+        '(?i)\[SUPERSEDED|\bSUPERSEDED\b|\[CONTRADICTION|\bCONTRADICTION\b|\[UPDATE|\berrata\b|\brefuted\b')
+    Assert-True -Name 'and the same corpus fails under a global IgnoreCase (the case can fail)' `
+        -Condition ($r21b.Exit -eq 1 -and $r21b.Out -match 'sibling\.md:3') -Detail $r21b.Out
+
+    # Agent worktrees live in .claude/ INSIDE the repository, and each is a full copy of it:
+    # swept from the root, every stale value came back once per copy. The exclusion reads
+    # the path relative to -Root - the full path would exclude everything when -Root is
+    # itself a worktree under .claude, and the gate would break to "no .md file".
+    Write-Output ''
+    Write-Output 'Group 14  agent worktrees under .claude'
+    $c22 = New-Corpus
+    $src22 = @('# Source', '', 'The measured step was 7.68 units under the first method.', '',
+        '> **[SUPERSEDED 2026-09-02]** the step is 7.55 units, not 7.68.', '') + $Filler
+    $sib22 = @('# Sibling', '', 'Downstream sizing assumes a step of 7.68 units.', '') + $Filler
+    Set-Page -Root $c22 -Rel 'notes/source.md' -Lines $src22
+    Set-Page -Root $c22 -Rel 'notes/sibling.md' -Lines $sib22
+    Set-Page -Root $c22 -Rel '.claude/worktrees/w/notes/source.md' -Lines $src22
+    Set-Page -Root $c22 -Rel '.claude/worktrees/w/notes/sibling.md' -Lines $sib22
+    $r22 = Invoke-Gate @('-Root', $c22)
+    Assert-True -Name 'the copy under .claude/worktrees is not swept (only the root sibling fails)' `
+        -Condition ($r22.Exit -eq 1 -and $r22.Out -match 'notes/sibling\.md:3' -and $r22.Out -notmatch '\.claude') `
+        -Detail $r22.Out
+    $r23 = Invoke-Gate @('-Root', (Join-Path $c22 '.claude\worktrees\w'))
+    Assert-True -Name 'with -Root inside .claude/worktrees the gate sweeps that worktree' `
+        -Condition ($r23.Exit -eq 1 -and $r23.Out -match 'notes/sibling\.md:3') -Detail $r23.Out
 }
 finally {
     foreach ($d in $script:Temps) { Remove-Item -LiteralPath $d -Recurse -Force -ErrorAction SilentlyContinue }

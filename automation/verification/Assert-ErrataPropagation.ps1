@@ -47,6 +47,11 @@
   And a value genuinely superseded appears in few places, while a common number appears
   everywhere: the -MaxSpread cut separates them without knowing what any number means.
 
+  WHAT IT DOES NOT SWEEP: .git, _archive, node_modules, raw - and .claude, where agent
+  worktrees live. A worktree is a full copy of the repository, so sweeping it reports
+  every stale value once per copy (2026-10-05). The filter reads the path RELATIVE to
+  -Root, so pointing -Root at a worktree inside .claude still sweeps that worktree.
+
   APPEND-ONLY PROSE IS NOT A FINDING. A ledger (an operation log, an index) quotes the
   old value in order to record that it was corrected. Counting that is the sub-pattern
   "the scanner's scope is not the artifact's contract" from family 1. Those files are
@@ -68,8 +73,13 @@
                      convention - SUPERSEDED, CONTRADICTION - while "contradiction" in
                      ordinary prose is not a marker and matching it would turn every
                      essay about disagreement into an errata block. The written forms
-                     allow the sentence-initial capital, and nothing more: [Ee]rrata,
-                     [Rr]efuted.
+                     match in ANY case, through an inline (?i:...) group: errata,
+                     Errata, ERRATA; refuted, Refuted, REFUTED. Until 2026-10-05 they
+                     allowed only the sentence-initial capital, [Ee]rrata and
+                     [Rr]efuted, and a block headed "ERRATA" - a common way to write
+                     one - was invisible: the gate found no marker, or reported the
+                     corpus clean, while the stale value sat there. A global IgnoreCase
+                     is the wrong fix: it turns the shouted conventions into prose.
     -MinTokenLength  Shortest numeric token that counts as distinctive. Default 3: "7.68"
                      counts, "12" does not - a short number matches anywhere and yields
                      only noise.
@@ -92,7 +102,7 @@
 [CmdletBinding(PositionalBinding = $false)]
 param(
     [string]   $Root,
-    [string]   $MarkerPattern = '\[SUPERSEDED|\bSUPERSEDED\b|\[CONTRADICTION|\bCONTRADICTION\b|\[UPDATE|\b[Ee]rrata\b|\b[Rr]efuted\b',
+    [string]   $MarkerPattern = '\[SUPERSEDED|\bSUPERSEDED\b|\[CONTRADICTION|\bCONTRADICTION\b|\[UPDATE|\b(?i:errata|refuted)\b',
     [int]      $MinTokenLength = 3,
     [int]      $MaxSpread = 6,
     [string[]] $HistoricalProse = @('meta/log.md', 'meta/index.md', 'wiki/meta/log.md', 'wiki/meta/index.md'),
@@ -125,8 +135,11 @@ try {
     }
     $Root = (Get-Item -LiteralPath $Root).FullName
 
+    # Relative to -Root, not the full path: a root that itself lives under .claude (a
+    # worktree) would otherwise exclude every file and break to "no .md file".
+    $rootLen = $Root.TrimEnd('\', '/').Length
     $files = @(Get-ChildItem -LiteralPath $Root -Recurse -File -Filter '*.md' -ErrorAction SilentlyContinue |
-        Where-Object { $_.FullName -notmatch '[\\/](\.git|_archive|node_modules|raw)[\\/]' })
+        Where-Object { $_.FullName.Substring($rootLen) -notmatch '[\\/](\.git|\.claude|_archive|node_modules|raw)[\\/]' })
     if ($files.Count -eq 0) {
         Write-Output "COULD NOT VERIFY: no .md file under $Root - an empty sweep is not a clean sweep"
         exit 2
