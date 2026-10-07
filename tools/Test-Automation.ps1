@@ -238,6 +238,10 @@ $fetchAt = $backup.IndexOf('fetch -q $Remote')
 $syncAt  = $backup.IndexOf('& $SyncScript')
 Assert-True 'the backup fetches before it mirrors'    ($fetchAt -ge 0 -and $syncAt -ge 0 -and $fetchAt -lt $syncAt)
 Assert-True 'and stops when the remote is ahead'      ($backup -match 'BEHIND')
+# The mirror check must run BEFORE the sync too: it is what stops the pulled-but-not-
+# restored machine, which the fetch cannot see. Behaviour is in Test-AssertMirrorFreshness.
+$mirrorAt = $backup.IndexOf('-PairsFile $MirrorPairs')
+Assert-True 'the backup checks the mirror before it syncs' ($mirrorAt -ge 0 -and $syncAt -ge 0 -and $mirrorAt -lt $syncAt)
 
 $routine = Get-Text 'maintenance\weekly-routine.md'
 Assert-True 'the weekly routine is defined, not merely nagged about' ($routine.Length -gt 0)
@@ -294,7 +298,7 @@ Assert-True 'snapshot-first is explained'        ($verification -match '(?i)snap
 # opposite failure: a gate DELETED would otherwise silently reduce the coverage to nothing.
 $required = @('Invoke-Gitleaks.ps1', 'Assert-Baseline.ps1', 'Assert-NoControlBytes.ps1',
     'Assert-MemoryLinks.ps1', 'Assert-MemoryIndex.ps1', 'Assert-PlanFreshness.ps1',
-    'Invoke-VaultLint.ps1', 'Assert-ErrataPropagation.ps1')
+    'Invoke-VaultLint.ps1', 'Assert-ErrataPropagation.ps1', 'Assert-MirrorFreshness.ps1')
 $verificationDir = Join-Path $AutomationRoot 'verification'
 $present = @(Get-ChildItem -LiteralPath $verificationDir -File -Filter '*.ps1' -ErrorAction SilentlyContinue |
     Sort-Object Name)

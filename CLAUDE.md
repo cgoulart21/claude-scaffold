@@ -62,7 +62,9 @@ Run the full sweep before pushing anything - it is the same list CI runs, in the
 .\tools\Test-AssertMemoryIndex.ps1
 .\tools\Test-AssertPlanFreshness.ps1
 .\tools\Test-InvokeVaultLint.ps1
+.\tools\Test-AssertErrataPropagation.ps1
 .\tools\Test-MergeCorrectionsLog.ps1
+.\tools\Test-AssertMirrorFreshness.ps1
 .\tools\Test-BackupPushClassification.ps1
 .\tools\check-no-personal-data.ps1 -Path .
 ```

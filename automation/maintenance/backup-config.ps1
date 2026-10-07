@@ -17,6 +17,8 @@
 param(
     [string]$RepositoryPath,
     [string]$SyncScript,
+    [string]$MirrorPairs,
+    [string]$MirrorGate,
     [string]$Remote = 'origin',
     [string]$Branch = 'main'
 )
@@ -30,10 +32,16 @@ $ErrorActionPreference = 'Continue'
 # ---------------------------------------------------------------------------
 $DefaultRepositoryPath = ''    # e.g. C:\Path\To\your-private-config-repo
 $DefaultSyncScript     = ''    # e.g. C:\Path\To\your-private-config-repo\sync.ps1
+# The mirror check (see "MIRROR AHEAD OF LIVE" below): the pairs file your sync copies,
+# and the gate that compares them. Leave both empty only if nothing is mirrored.
+$DefaultMirrorPairs    = ''    # e.g. C:\Path\To\your-private-config-repo\mirror-pairs.txt
+$DefaultMirrorGate     = ''    # e.g. C:\Path\To\verification\Assert-MirrorFreshness.ps1
 # ---------------------------------------------------------------------------
 
 if ([string]::IsNullOrEmpty($RepositoryPath)) { $RepositoryPath = $DefaultRepositoryPath }
 if ([string]::IsNullOrEmpty($SyncScript))     { $SyncScript     = $DefaultSyncScript }
+if ([string]::IsNullOrEmpty($MirrorPairs))    { $MirrorPairs    = $DefaultMirrorPairs }
+if ([string]::IsNullOrEmpty($MirrorGate))     { $MirrorGate     = $DefaultMirrorGate }
 
 if ([string]::IsNullOrEmpty($RepositoryPath) -or -not (Test-Path (Join-Path $RepositoryPath '.git'))) {
     Write-Output "Backup: no git repository at '$RepositoryPath' - skipping. Set the path at the top of this script."
@@ -64,8 +72,52 @@ else {
     Write-Output "Backup: could not fetch $Remote/$Branch before syncing (continuing; push will tell). git said: $($fetchOut.Trim())"
 }
 
+# ---------------------------------------------------------------------------
+# MIRROR AHEAD OF LIVE. The fetch above stops a machine that is BEHIND. It cannot stop the
+# machine that did the right thing first - pulled - and then syncs before restoring what
+# it pulled: the sync copies the stale live file over the fresh mirror, and the commit
+# and push below are clean. One practice lost an improvement exactly that way, from a
+# restore step that covered its main config folder and missed a file mirrored from
+# elsewhere. So the gate compares every pair before the sync touches any of them, and
+# anything but 0 - a mirror ahead (1) or could-not-verify (2) - stops here. A guard that
+# could not run is not a guard that passed.
+# ---------------------------------------------------------------------------
+if (-not [string]::IsNullOrEmpty($MirrorPairs) -or -not [string]::IsNullOrEmpty($MirrorGate)) {
+    $mirrorExit = $null
+    if ([string]::IsNullOrEmpty($MirrorPairs)) {
+        # Never pass an empty string through -File: it vanishes in the binder, which then
+        # exits 1 - the code of a finding - for a reason that is not one.
+        $mirrorOut = 'mirror gate configured without a pairs file'
+    }
+    elseif (-not [string]::IsNullOrEmpty($MirrorGate) -and (Test-Path -LiteralPath $MirrorGate -PathType Leaf)) {
+        $global:LASTEXITCODE = $null
+        $mirrorOut = (& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $MirrorGate -PairsFile $MirrorPairs 2>&1) | Out-String
+        $mirrorExit = $global:LASTEXITCODE
+    }
+    else {
+        $mirrorOut = "mirror gate not found: '$MirrorGate'"
+    }
+    if ($mirrorExit -ne 0) {
+        Write-Output "Backup: STOPPED before the sync - a mirror is AHEAD of its live file, or the mirror check could not run (code [$mirrorExit]). Nothing was mirrored or committed."
+        Write-Output '        Restore the repository to this machine first (repository -> machine), then run the backup again.'
+        Write-Output $mirrorOut.TrimEnd()
+        return
+    }
+}
+else {
+    Write-Output 'Backup: mirror check not configured (set $DefaultMirrorPairs and $DefaultMirrorGate) - a pulled-but-not-restored mirror would be overwritten.'
+}
+
 if (-not [string]::IsNullOrEmpty($SyncScript) -and (Test-Path -LiteralPath $SyncScript)) {
+    # The sync's exit code decides. With '| Out-Null' and no check, a sync that failed
+    # half-way was followed by a commit of whatever it had left in the tree.
+    $global:LASTEXITCODE = $null
     & $SyncScript | Out-Null
+    $syncExit = $global:LASTEXITCODE
+    if ($null -ne $syncExit -and $syncExit -ne 0) {
+        Write-Output "Backup: the sync FAILED (code [$syncExit]). Nothing was committed or pushed. Run the sync by hand to see why."
+        return
+    }
 }
 
 $changes = git -C $RepositoryPath status --porcelain

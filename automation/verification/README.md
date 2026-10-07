@@ -12,9 +12,10 @@ Seven different jobs that people collapse into one or two, and should not.
 | Plan staleness | `Assert-PlanFreshness.ps1` | is any active `PLAN.md` older than the threshold, or based on a commit `HEAD` no longer descends from? |
 | Vault health | `Invoke-VaultLint.ps1` | orphans, stubs, real dangling links - the mechanical half of the vault's Lint operation |
 | Errata propagation | `Assert-ErrataPropagation.ps1` | does a value marked superseded in one place still appear, unmarked, somewhere else? |
+| Mirror ahead of live | `Assert-MirrorFreshness.ps1` | is any file in the backup repository newer than the live file it mirrors, so that a sync now would revert it? |
 
 None covers another, and none covers the sanitization gate in `tools/`, which looks for
-identity and location rather than credentials. Nine gates, nine enumerations - and each is
+identity and location rather than credentials. Ten gates, ten enumerations - and each is
 worth exactly what it enumerates. Four were promoted from a private practice after a second
 machine audited this repository and pointed out that the weekly routine asked the reader to
 do by hand what the practice had already automated; the memory-index gate followed when that
@@ -208,6 +209,16 @@ character, the description within `-MaxLength` (200 by default) and a plain YAML
 judges neither the wording nor the grouping, and it never writes a line: the index stays
 authored. What it catches is the second relevance text - the hook edited in the index while
 the description stayed behind, or the memory written in a hurry with no line at all.
+
+`Assert-MirrorFreshness` reads a **pairs file** - one `<live> => <mirror>` per line - and
+that file should be the one your sync script copies from, so the list of what is mirrored
+and the list of what is checked cannot drift apart. A pair it cannot parse is a `2`, not a
+warning: a pair skipped in silence is the hole the gate exists to close. The backup script
+in `../maintenance/` runs it **before** the sync and stops on anything but `0`. It came from
+a practice whose restore step, after a pull, covered every file under its main config folder
+and missed one mirrored from elsewhere; the next backup copied the stale live file over the
+pulled one and pushed the reversion. The procedure was right; its coverage was not, and only
+a measurement of every pair sees that.
 
 `Invoke-VaultLint` prints one number it does not judge: comparative claims with no number in
 the sentence. A claim with a number can be checked mechanically; one without can only be

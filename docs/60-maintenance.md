@@ -96,10 +96,10 @@ backup: the sync overwrites the repository copy with A's older live file, commit
 push is refused. Good - the refusal is loud. The backup script now fetches first and stops
 before touching anything when the remote is ahead, so this case ends there.
 
-The case no script catches is the stale machine that does the *right* thing first: it pulls,
-gets B's improvement into the repository, and then syncs - and the sync mirrors A's old live
-file over the freshly pulled one. Clean commit, clean push, improvement gone. Nothing errors,
-because every step did what it was told.
+The harder case is the stale machine that does the *right* thing first: it pulls, gets B's
+improvement into the repository, and then syncs - and the sync mirrors A's old live file over
+the freshly pulled one. Clean commit, clean push, improvement gone. Nothing errors, because
+every step did what it was told.
 
 The rule that closes it is procedural: **repository to machine first, machine to repository
 after, never the reverse.** On a machine that has been away, restore or bootstrap from the
@@ -107,6 +107,14 @@ pulled repository *before* you sync from it. Measure `ahead/behind` for every re
 share before you start, not after something looks wrong. This is lesson family 10 in
 operational form: the handoff described the machine it came from, and the machine you are
 on is not that one.
+
+A procedure is only as good as its coverage, though, and coverage is where it failed in
+practice: a restore that covered every file under the main config folder and missed one
+mirrored from elsewhere. So the rule now has a mechanism. `Assert-MirrorFreshness.ps1`
+compares every pair in your pairs file - the same file your sync copies from - and reports any
+mirror that is newer than its live file; the backup script runs it **before** the sync and
+stops on anything but a clean result. Configure it. A backup that announces "mirror check not
+configured" is telling you it would overwrite a pulled-but-not-restored file without a word.
 
 ## What maintenance does not cover
 
