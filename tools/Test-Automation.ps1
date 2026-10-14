@@ -62,11 +62,11 @@ function Invoke-HookWithEvent {
 }
 
 function New-Event {
-    param([string]$Command, [string]$ToolName = 'Bash')
+    param([string]$Command, [string]$ToolName = 'Bash', [string]$Cwd = $env:TEMP)
     $payload = @{
         hook_event_name = 'PreToolUse'
         tool_name       = $ToolName
-        cwd             = $env:TEMP
+        cwd             = $Cwd
         tool_input      = @{ command = $Command }
     }
     return ($payload | ConvertTo-Json -Depth 5 -Compress)
@@ -121,6 +121,35 @@ foreach ($command in @('git status', 'ls -la', 'git commit -m "checkpoint: wip"'
 }
 $result = Invoke-HookWithEvent -Relative 'hooks\review-before-commit.ps1' -Json 'not json at all'
 Assert-True 'malformed event never blocks an advisory hook' ($result.Code -eq 0)
+
+# Regression: under $ErrorActionPreference = 'Stop', Windows PowerShell 5.1 turns even
+# REDIRECTED stderr (2>$null) of a native command into a terminating error. git's
+# "LF will be replaced by CRLF" warning, and its "not a git repository", killed the hook
+# with exit 1 before the reminder - in one private practice, 15 of 86 runs. Both cases
+# need a real repository and a real commit command; the ones above never reach git.
+$crlfRepo = Join-Path $env:TEMP ('rbc-crlf-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+$notRepo  = Join-Path $env:TEMP ('rbc-norepo-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+New-Item -ItemType Directory -Path $crlfRepo, $notRepo -Force | Out-Null
+$previous = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
+try {
+    # The setup itself emits the warning; under 'Stop' it would abort this suite.
+    & git -C $crlfRepo init -q 2>$null
+    & git -C $crlfRepo config core.autocrlf true 2>$null
+    [IO.File]::WriteAllText((Join-Path $crlfRepo 'lf.py'), "print('a')`nprint('b')`n")
+    & git -C $crlfRepo add -- lf.py 2>$null
+    & git -C $crlfRepo -c user.name=t -c user.email=t@t commit -q -m base 2>$null | Out-Null
+    [IO.File]::WriteAllText((Join-Path $crlfRepo 'lf.py'), "print('a')`nprint('c')`n")
+}
+finally { $ErrorActionPreference = $previous }
+
+$result = Invoke-HookWithEvent -Relative 'hooks\review-before-commit.ps1' -Json (New-Event -Command 'git commit -am test' -Cwd $crlfRepo)
+Assert-True 'survives the LF->CRLF warning: exit 0'           ($result.Code -eq 0)
+Assert-True 'survives the LF->CRLF warning: reminder emitted' ($result.Text -match 'additionalContext')
+$result = Invoke-HookWithEvent -Relative 'hooks\review-before-commit.ps1' -Json (New-Event -Command 'git commit -m test' -Cwd $notRepo)
+Assert-True 'outside a repository: exit 0'                   ($result.Code -eq 0)
+Assert-True 'outside a repository: no reminder'              ($result.Text -notmatch 'additionalContext')
+Remove-Item -LiteralPath $crlfRepo, $notRepo -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Output 'Group 3 - session-start injects, warns, and can be switched off'
 

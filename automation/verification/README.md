@@ -43,6 +43,13 @@ mismatch; the same corpus, swept with its own pattern, is clean. Read the corpus
 convention before measuring it, which is the corollary in family 3 of the lessons file, and
 is worth re-reading every time a scanner produces a number about someone else's text.
 
+What remains after the convention is right - a ledger that quotes the old value on purpose,
+a commit hash the tokenizer reads as a number - is knowledge of that corpus, so it is
+declared there: `<root>/.errata-propagation.psd1`, versioned in the repository being swept,
+with a reason for every exception. An exception without a reason is a `2`, not a quiet
+suppression. A value struck through on its own line (`~~7.68~~ 7.55`) already counts as
+marked.
+
 ## The exit-code contract
 
 Every gate here uses the same three outcomes:
@@ -218,7 +225,10 @@ in `../maintenance/` runs it **before** the sync and stops on anything but `0`. 
 a practice whose restore step, after a pull, covered every file under its main config folder
 and missed one mirrored from elsewhere; the next backup copied the stale live file over the
 pulled one and pushed the reversion. The procedure was right; its coverage was not, and only
-a measurement of every pair sees that.
+a measurement of every pair sees that. Text compares modulo CRLF/LF: a checkout under
+`core.autocrlf=true` - a fresh clone, an agent worktree - writes CRLF where the live file is
+LF and has the newest mtime, and a byte comparison reported every text pair as ahead. A file
+with a NUL byte is binary and compares raw.
 
 `Invoke-VaultLint` prints one number it does not judge: comparative claims with no number in
 the sentence. A claim with a number can be checked mechanically; one without can only be

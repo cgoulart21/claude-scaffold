@@ -395,6 +395,81 @@ try {
     $r23 = Invoke-Gate @('-Root', (Join-Path $c22 '.claude\worktrees\w'))
     Assert-True -Name 'with -Root inside .claude/worktrees the gate sweeps that worktree' `
         -Condition ($r23.Exit -eq 1 -and $r23.Out -match 'notes/sibling\.md:3') -Detail $r23.Out
+
+    # Counting in the marker and finding on a line used to search the token as a SUBSTRING,
+    # while identification used the tokenizer. The superseded 0.25 matched 0.2562 and
+    # 17.68-style neighbours; in the marker, "0.2562, not 0.25" counted 0.25 twice and
+    # passed it off as the value that stayed the same - so the stale value went unaccused.
+    Write-Output ''
+    Write-Output 'Group 15  a superseded value matches whole numbers, never a prefix'
+    $c24 = New-Corpus
+    Set-Page -Root $c24 -Rel 'notes/source.md' -Lines (@('# Source', '',
+        'The fitted coefficient was 0.25 under the old model.', '',
+        '> **[SUPERSEDED 2026-10-08]** the coefficient is 0.2562, not 0.25.', '') + $Filler)
+    Set-Page -Root $c24 -Rel 'notes/stale.md' -Lines (@('# Stale', '', 'Sizing still uses 0.25 as the coefficient.', '') + $Filler)
+    Set-Page -Root $c24 -Rel 'notes/longer.md' -Lines (@('# Longer', '', 'The refit gives 0.2562 exactly.', '') + $Filler)
+    $r24 = Invoke-Gate @('-Root', $c24)
+    Assert-True -Name 'a value beside a longer one in its marker is still identified (stale page accused)' `
+        -Condition ($r24.Exit -eq 1 -and $r24.Out -match 'notes/stale\.md:3') -Detail $r24.Out
+    Assert-True -Name 'the longer number that starts with it is not accused' `
+        -Condition ($r24.Out -notmatch 'notes/longer\.md') -Detail $r24.Out
+    $c25 = New-Corpus
+    Set-Page -Root $c25 -Rel 'notes/source.md' -Lines (@('# Source', '',
+        'The measured step was 7.68 units under the first method.', '',
+        '> **[SUPERSEDED 2026-09-02]** the step is 7.55 units, not 7.68.', '') + $Filler)
+    Set-Page -Root $c25 -Rel 'notes/other.md' -Lines (@('# Other', '', 'A bore of 7.685 mm and a span of 17.68 m.', '') + $Filler)
+    $r25 = Invoke-Gate @('-Root', $c25)
+    Assert-True -Name '7.685 and 17.68 do not repeat 7.68 (exit 0)' `
+        -Condition ($r25.Exit -eq 0 -and $r25.Out -notmatch 'notes/other\.md') -Detail $r25.Out
+
+    # Markdown's own way to say "superseded" is a strike: ~~7.68~~ 7.55. It covers the
+    # token INSIDE the strike only; a strike on another word covers nothing.
+    Write-Output ''
+    Write-Output 'Group 16  a struck-through value is marked'
+    $c26 = New-Corpus
+    Set-Page -Root $c26 -Rel 'notes/source.md' -Lines (@('# Source', '',
+        'The measured step was 7.68 units under the first method.', '',
+        '> **[SUPERSEDED 2026-09-02]** the step is 7.55 units, not 7.68.', '') + $Filler)
+    Set-Page -Root $c26 -Rel 'notes/struck.md' -Lines (@('# Struck', '', 'The step is ~~7.68~~ 7.55 units.', '') + $Filler)
+    Set-Page -Root $c26 -Rel 'notes/elsewhere.md' -Lines (@('# Elsewhere', '', 'The ~~old~~ step is 7.68 units.', '') + $Filler)
+    $r26 = Invoke-Gate @('-Root', $c26)
+    Assert-True -Name 'the struck value is not accused' -Condition ($r26.Out -notmatch 'notes/struck\.md') -Detail $r26.Out
+    Assert-True -Name 'a strike on another word does not cover the value' `
+        -Condition ($r26.Exit -eq 1 -and $r26.Out -match 'notes/elsewhere\.md:3') -Detail $r26.Out
+
+    # What counts as an exception in one corpus is knowledge OF that corpus, and rots with
+    # it, so it lives versioned at the root being swept: <root>/.errata-propagation.psd1.
+    # An exception without a reason, or a file that cannot be read, is never a clean sweep.
+    Write-Output ''
+    Write-Output 'Group 17  per-root configuration'
+    $src27 = @('# Source', '', 'The measured step was 7.68 units under the first method.', '',
+        '> **[SUPERSEDED 2026-09-02]** the step is 7.55 units, not 7.68.', '') + $Filler
+    $sib27 = @('# Sibling', '', 'Downstream sizing assumes a step of 7.68 units.', '') + $Filler
+    $cfgCases = @(
+        @{ Name = 'an exception with a reason suppresses that location'; Exit = 0
+           Cfg  = "@{ Exceptions = @{ 'notes/sibling.md:7.68' = 'quotes the old value to record the correction' } }" },
+        @{ Name = 'an exception without a reason cannot verify (exit 2)'; Exit = 2
+           Cfg  = "@{ Exceptions = @{ 'notes/sibling.md:7.68' = '' } }" },
+        @{ Name = 'an unreadable configuration cannot verify (exit 2)'; Exit = 2
+           Cfg  = "@{ Exceptions = this is not data" },
+        @{ Name = 'a ledger declared at the root is reported, not counted'; Exit = 0
+           Cfg  = "@{ HistoricalProse = @('notes/sibling.md') }" }
+    )
+    foreach ($case in $cfgCases) {
+        $c27 = New-Corpus
+        Set-Page -Root $c27 -Rel 'notes/source.md' -Lines $src27
+        Set-Page -Root $c27 -Rel 'notes/sibling.md' -Lines $sib27
+        [IO.File]::WriteAllText((Join-Path $c27 '.errata-propagation.psd1'), $case.Cfg + "`n", $Utf8NoBom)
+        $r27 = Invoke-Gate @('-Root', $c27)
+        Assert-True -Name $case.Name -Condition ($r27.Exit -eq $case.Exit) -Detail "exit [$($r27.Exit)]; $($r27.Out)"
+    }
+    # The control: the same corpus with no configuration is a finding.
+    $c28 = New-Corpus
+    Set-Page -Root $c28 -Rel 'notes/source.md' -Lines $src27
+    Set-Page -Root $c28 -Rel 'notes/sibling.md' -Lines $sib27
+    $r28 = Invoke-Gate @('-Root', $c28)
+    Assert-True -Name 'control: without the configuration the sibling is a finding' `
+        -Condition ($r28.Exit -eq 1 -and $r28.Out -match 'notes/sibling\.md:3') -Detail $r28.Out
 }
 finally {
     foreach ($d in $script:Temps) { Remove-Item -LiteralPath $d -Recurse -Force -ErrorAction SilentlyContinue }

@@ -79,6 +79,13 @@ if ($gitCMatch.Success) {
 $git = Get-Command git -ErrorAction SilentlyContinue
 if (-not $git) { exit 0 }
 
+# Only git calls from here on. Under 'Stop', Windows PowerShell 5.1 turns even
+# redirected stderr (2>$null) of a native command into a terminating error: git's
+# "LF will be replaced by CRLF" warning and "not a git repository" killed this hook
+# with exit 1 before the reminder. The hook is advisory; each call's result is
+# checked through $LASTEXITCODE and its output instead.
+$ErrorActionPreference = 'Continue'
+
 $inside = @(& $git.Source -c core.fsmonitor=false -C $repoPath rev-parse --is-inside-work-tree 2>$null)
 if ($LASTEXITCODE -ne 0 -or $inside -notcontains 'true') { exit 0 }
 

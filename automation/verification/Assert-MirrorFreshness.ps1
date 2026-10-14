@@ -89,7 +89,23 @@ try {
     if ($malformed.Count -gt 0) { Write-CouldNot ("malformed pair(s) in {0}: {1} - expected '<live> => <mirror>'" -f $PairsFile, ($malformed -join ', ')) }
     if ($pairs.Count -eq 0) { Write-CouldNot "no pair in $PairsFile" }
 
-    function Get-Sha([string] $Path) { return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash }
+    # Text compares modulo CRLF/LF: a checkout under core.autocrlf=true (a fresh clone, an
+    # agent worktree) writes CRLF where the live file is LF, and its mtime is the newest, so
+    # byte hashes reported every text pair as ahead. A file with a NUL byte is binary and
+    # compares raw.
+    function Get-Sha([string] $Path) {
+        $bytes = [IO.File]::ReadAllBytes($Path)
+        if ([Array]::IndexOf($bytes, [byte] 0) -lt 0) {
+            $kept = New-Object 'System.Collections.Generic.List[byte]' ($bytes.Length)
+            for ($i = 0; $i -lt $bytes.Length; $i++) {
+                if ($bytes[$i] -eq 13 -and ($i + 1) -lt $bytes.Length -and $bytes[$i + 1] -eq 10) { continue }
+                $kept.Add($bytes[$i])
+            }
+            $bytes = $kept.ToArray()
+        }
+        $sha = [Security.Cryptography.SHA256]::Create()
+        try { return [BitConverter]::ToString($sha.ComputeHash($bytes)) } finally { $sha.Dispose() }
+    }
 
     # --- 2. compare file by file ---------------------------------------------------
     $files = 0; $pending = 0; $ahead = 0; $liveMissing = 0

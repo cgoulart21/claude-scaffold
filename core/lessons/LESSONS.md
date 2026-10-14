@@ -18,7 +18,7 @@ No intermediate stage, no proposals folder, no weekly review. Those stages exist
 the pipeline died in the second one, with 99 observations captured and 1 applied. The rule is
 the whole mechanism: if it never happens again, you were right not to make it a rule.
 
-> **These ten are borrowed, not yours.** They come from one practice - engineering,
+> **These twelve are borrowed, not yours.** All but one come from one practice - engineering,
 > hardware, research - and they are here as seeds, so you start with a checklist instead of
 > a blank file. The occurrences behind them have been removed: they named projects, people
 > and dates. Your scars will be different ones, and the rule above is how you record them.
@@ -95,7 +95,10 @@ application-control policy blocking an executable reported as a broken server - 
 long-running solver before it wrote its output and reading the interruption as "this input
 cannot be solved", when the same binary, left to finish, solved it - a `--check` flag that
 skips the build and validates the artifact already sitting at the destination, reporting
-"all passed" over stale output.
+"all passed" over stale output - a recursive search for links that found none in the
+repository, and also none among eight links known to exist in the control folder: the
+search could not see links at all, and its empty answer proved nothing. A scan that comes
+back empty is only evidence when a known positive in the same call came back found.
 
 **Zero from a broken channel has the same shape as measured zero.** An extractor fed through
 standard input returned "0 nodes" with no fatal error, because each worker process died
@@ -349,6 +352,12 @@ editing a file by script, census the terminators by counting bytes, and adapt pe
 real repository mixes both. And a line-ending check must read in binary or with newline
 translation disabled, or universal mode makes a uniformly CRLF file look mixed.
 
+**Checkout variant.** A checkout made under `core.autocrlf=true` - a fresh clone, an agent's
+worktree - gets CRLF where the original checkout and the live copy are LF. A byte hash then
+reports a difference that is not there: a build check called an unchanged asset stale, and a
+mirror gate reported thirteen files as ahead, all from the same worktree. Hash text modulo
+the terminator, or pin `eol` in the repository's attributes file.
+
 ---
 
 ## 9. A string that crosses a layer is silently rewritten
@@ -472,3 +481,40 @@ four projects in two practices. The family has a name of its own, rather than be
 into family 3, because it arrived in three different shapes - external search summary,
 external page extractor, self-authored report - and a third shape is what opens a family
 here.
+
+**The layer can be the project's own notes.** A sentence saying the knowledge base "still
+claims" a refuted figure was copied from handoff to handoff for a month, while the knowledge
+base had carried the refutation all along; and a reply stating that a parameter "was never
+measured" came from an old context block, when the latest record in the chain had measured
+it. A claim about the state of another surface is checked on that surface, or on the most
+recent record, before it is repeated.
+
+## 12. A number that reaches an artifact or a person is measured or computed in the turn; a remembered one is a hypothesis
+
+The number comes out fluent, in the right format and with the right decimal place, and it
+comes out just as fluent when it is wrong. There is no layer between you and a source here
+(that is family 11): the source was never consulted, because the sum was not done or the
+measurement was not repeated. The value comes from an earlier session, from an estimate in
+your head or from "it should be about this", and it lands somewhere another person reads as
+measured: a test comment, a document, a handoff, a commit message, a reply. Family 10 is the
+reader's side of a handoff: re-measure at the destination before acting. This is the
+writer's side: the number was never produced at all.
+
+**Apply:** every number that goes into an artifact has, in the same turn, the command that
+produced it in view: the suite's output for a count, a three-line script for a physical
+value, the diff statistics for the size of a change. Counts are measured by running, not
+quoted. A ratio between two numbers is recomputed from the file at the moment it is
+recorded. When measuring now is not possible, the number goes in as an estimate, with the
+"approximately" and the "from memory" visible, never in the register of fact. And when
+reviewing, distrust the numbers in comments and prose first: nothing executes there, which
+is exactly why they survive.
+
+**Shapes it takes:** a handoff that credited a gate's test suite with one assertion more than
+it had, because the count came from the previous session - three test comments and a
+document in a firmware change, with temperatures and voltages worked out in the head and each
+one off by 10 to 30 %, none of which changed a test result, which is why they got through -
+"twelve consecutive editions since" a year that a reviewer caught by arithmetic - a ratio
+written as 5-6x that the versioned data put at 5-7x - "about two standard deviations" said in
+conversation when the script gave 3.5 standard errors. Five occurrences across four
+projects. The last one never reached a file, and the rule applies all the same: the person
+decides on a number said in conversation exactly as on a number written down.

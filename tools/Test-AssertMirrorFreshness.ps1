@@ -92,6 +92,25 @@ try {
     Assert-True 'the summary counts 4 pairs, 2 pending, 0 ahead, 1 live missing' ($r.Out -match '4 pair\(s\).*2 pending.*0 ahead.*1 live missing') $r.Out
     Assert-True 'prints OK' ($r.Out -match 'OK\s+no mirror is ahead') $r.Out
 
+    Write-Output 'Group 1b - line endings alone are not a difference'
+    # A checkout under core.autocrlf=true (a fresh clone, an agent worktree) writes CRLF
+    # where the live file is LF, and its mtime is the newest: byte hashes reported every
+    # text pair as ahead. Text compares modulo CRLF/LF; a file with a NUL byte is binary
+    # and compares raw.
+    $box = New-Box
+    Set-File (Join-Path $box 'live\a.md') "line a`nline b`n" 600
+    Set-File (Join-Path $box 'repo\a.md') "line a`r`nline b`r`n" 5
+    Set-File (Join-Path $box 'live\t.md') "line a`nline b`n" 600
+    Set-File (Join-Path $box 'repo\t.md') "line a`r`nline c`r`n" 5
+    Set-File (Join-Path $box 'live\z.bin') "a`0`nb`n" 600
+    Set-File (Join-Path $box 'repo\z.bin') "a`0`r`nb`r`n" 5
+    $pairs = Set-Pairs $box @("$box\live\a.md => a.md", "$box\live\t.md => t.md", "$box\live\z.bin => z.bin")
+    $r = Invoke-Ps $GatePath @('-PairsFile', $pairs)
+    Assert-True 'CRLF vs LF with the same text is not ahead' ($r.Out -notmatch 'a\.md.*AHEAD') $r.Out
+    Assert-True 'CRLF plus a text change is still ahead' ($r.Out -match 'FINDING\s+.*t\.md.*AHEAD') $r.Out
+    Assert-True 'a file with a NUL byte compares raw' ($r.Out -match 'FINDING\s+.*z\.bin.*AHEAD') $r.Out
+    Assert-True 'line endings: exactly 2 ahead' ($r.Out -match '2 ahead') $r.Out
+
     Write-Output 'Group 2 - state 1: a mirror ahead of its live file'
     $box = New-Box
     Set-File (Join-Path $box 'live\a.md') "old live`n" 600

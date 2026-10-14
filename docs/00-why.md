@@ -25,8 +25,8 @@ design-rule check does not mean a manufacturable board. Six months later, a diff
 project discovers that a green build does not mean a satisfied contract. Same lesson, no
 transfer, full price paid twice - because nothing connected them.
 
-`core/lessons/` is that connection: eleven families of error, each one collected from at least
-two projects that learned it separately. And `core/corrections/` is how the eleventh gets
+`core/lessons/` is that connection: twelve families of error, each one collected from at least
+two projects that learned it separately. And `core/corrections/` is how the thirteenth gets
 found - a log that counts, and a rule that promotes a lesson on its **second** occurrence.
 
 The counting matters more than it sounds. The instinct is to build a pipeline: capture

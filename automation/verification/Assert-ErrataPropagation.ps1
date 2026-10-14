@@ -94,10 +94,22 @@
                      globally would kill the true finding along with the noise.
     -Quiet           Findings and the count only.
 
-  DECLARE EXCEPTIONS WITH A REASON, next to wherever you invoke this gate. An exception
-  without a stated reason rots in silence, and this gate deliberately has no built-in
-  list: the ones the originating practice needed were about its own corpus and would be
-  meaningless - and silently wrong - in yours.
+  DECLARE EXCEPTIONS WITH A REASON. An exception without a stated reason rots in silence,
+  and this gate deliberately has no built-in list: the ones the originating practice
+  needed were about its own corpus and would be meaningless - and silently wrong - in
+  yours. The durable place is '<root>/.errata-propagation.psd1', versioned in the
+  repository being swept:
+    @{ HistoricalProse = @('relative/path.md'); Exceptions = @{ 'file.md:token' = 'reason' } }
+  An exception there without a reason, or a file that cannot be read, exits 2. The file's
+  ledgers add to -HistoricalProse, and -NoHistoricalProse switches both off.
+
+  A value STRUCK THROUGH on its own line (~~7.68~~ 7.55) counts as marked; a strike on
+  another word does not cover it.
+
+  KNOWN LIMIT. Identification cannot tell WHICH value in a marker is the old one: a
+  corrected value that appears once in the marker and also in the passage beside it is
+  taken as superseded. Coverage (the correct value usually sits near a marker) and the
+  spread cut hold this back; the per-root exceptions declare what remains.
 #>
 [CmdletBinding(PositionalBinding = $false)]
 param(
@@ -160,6 +172,34 @@ try {
         }
     }
 
+    # PER-ROOT CONFIGURATION. What counts as an exception in one corpus - a value a ledger
+    # quotes to record the correction, a commit hash the tokenizer reads as a number - is
+    # knowledge OF that corpus and rots with its documents, so it lives versioned at the
+    # root being swept, in '<root>/.errata-propagation.psd1':
+    #   @{ HistoricalProse = @('relative/path.md'); Exceptions = @{ 'file.md:token' = 'reason' } }
+    # An unreadable file, or an exception without a reason, is NOT a clean sweep: exit 2.
+    $cfgPath = Join-Path $Root '.errata-propagation.psd1'
+    $cfgExceptions = 0
+    $cfgLedgers = @()
+    if (Test-Path -LiteralPath $cfgPath -PathType Leaf) {
+        try { $cfg = Import-PowerShellDataFile -LiteralPath $cfgPath }
+        catch {
+            Write-Output "COULD NOT VERIFY: unreadable configuration ${cfgPath}: $($_.Exception.Message)"
+            exit 2
+        }
+        if ($cfg.ContainsKey('Exceptions')) {
+            foreach ($k in $cfg.Exceptions.Keys) {
+                if ([string]::IsNullOrWhiteSpace([string] $cfg.Exceptions[$k])) {
+                    Write-Output "COULD NOT VERIFY: exception without a reason in ${cfgPath}: $k"
+                    exit 2
+                }
+                $exceptions[[string] $k] = $true
+                $cfgExceptions++
+            }
+        }
+        if ($cfg.ContainsKey('HistoricalProse')) { $cfgLedgers = @($cfg.HistoricalProse | ForEach-Object { [string] $_ }) }
+    }
+
     $markerRe = [regex] $MarkerPattern
     # A distinctive numeric token: digits with a separator, tolerating a thin thousands
     # space. Built by concatenation for the same reason the class above is.
@@ -179,14 +219,28 @@ try {
         }
     }
 
-    function Get-Token([string] $Text) {
-        $out = New-Object 'System.Collections.Generic.HashSet[string]'
+    # Identifying a value, counting it in its marker and finding it on a line ALL go through
+    # the tokenizer. Until 2026-10-08 the last two searched the token as a SUBSTRING, so the
+    # superseded 0.25 matched 0.2562 and 10.25, and in a marker reading "0.2562, not 0.25"
+    # it counted twice and passed for the value that stayed the same. The tokenizer already
+    # gives a numeric boundary on both sides - a greedy \d+ starting at the first digit
+    # makes 0.2562 one token - so comparing token to token is enough. The one deliberate
+    # exception is the spread count (section 1b).
+    # A LIST, with repetitions: the count in the marker needs them.
+    function Get-TokenList([string] $Text) {
+        $out = New-Object 'System.Collections.Generic.List[string]'
         foreach ($m in $tokenRe.Matches($Text)) {
             $t = ($m.Value -replace $script:ThinClass, '')
             if ($t.Length -lt $MinTokenLength) { continue }
             if ($t -match '^(19|20)\d{2}$') { continue }
-            [void]$out.Add($t)
+            $out.Add($t)
         }
+        return , $out
+    }
+
+    function Get-Token([string] $Text) {
+        $out = New-Object 'System.Collections.Generic.HashSet[string]'
+        foreach ($t in (Get-TokenList $Text)) { [void]$out.Add($t) }
         # THE COMMA IS NOT DECORATION. A PowerShell function that does "return $collection"
         # UNROLLS it into the pipeline: a HashSet with items comes back as an array (and
         # .Contains on an array happens to work), while an EMPTY HashSet comes back as
@@ -204,6 +258,12 @@ try {
         $n = @($Lines).Count
         if ($Idx -lt 0 -or $Idx -ge $n) { return $false }
         if ($markerRe.IsMatch([string]$Lines[$Idx])) { return $true }
+        # A value STRUCK THROUGH on its own line ("~~7.68~~ 7.55") is markdown's form of
+        # superseded. It covers only the token inside the strike: a strike on another word
+        # covers nothing.
+        foreach ($m in [regex]::Matches([string]$Lines[$Idx], '~~(.+?)~~')) {
+            if ((Get-Token $m.Groups[1].Value).Contains($Token)) { return $true }
+        }
 
         # MODEL: a scoped marker annotates the ADJACENT paragraph. So, from the line of the
         # finding: (1) leave the current paragraph, (2) skip blank lines, (3) accumulate
@@ -307,8 +367,8 @@ try {
                 if (-not $blockTokens.Contains($cand)) { continue }
                 # AND IT HAS TO HAVE CHANGED: a value quoted twice in the block is the one
                 # that stayed the same.
-                $hits = ([regex]::Matches(($blockText -replace $script:ThinClass, ''),
-                    [regex]::Escape($cand))).Count
+                # Count TOKENS, not substrings: 0.25 beside 0.2562 in one block counted 2.
+                $hits = @((Get-TokenList $blockText) | Where-Object { $_ -eq $cand }).Count
                 if ($hits -ge 2) { continue }
                 if (-not $superseded.ContainsKey($cand)) {
                     $superseded[$cand] = New-Object 'System.Collections.Generic.HashSet[string]'
@@ -324,6 +384,13 @@ try {
     }
 
     # ---------- 1b. drop NON-DISTINCTIVE tokens by spread ----------
+    # THIS COUNT STAYS A SUBSTRING ON PURPOSE, the only one that does not go through the
+    # tokenizer. It measures how common the DIGIT SEQUENCE is - 0.7 inside 0.75 and 10.7
+    # counts - not the value. Counting exact tokens was measured in the originating
+    # practice and reverted: findings went from 1 to 7 on one corpus and from 98 to 152 on
+    # another, with ONE true finding among them; the rest came from the identification
+    # limit (a corrected value that also sits in the marker), and the penalty the substring
+    # gives to short tokens is what holds them back.
     $spread = @{}
     foreach ($tok in @($superseded.Keys)) {
         $n = 0
@@ -336,17 +403,22 @@ try {
     foreach ($tok in $dropped) { $superseded.Remove($tok) }
 
     # ---------- 2. does each superseded value appear unmarked elsewhere? ----------
-    $ledgers = if ($NoHistoricalProse) { @() } else { @($HistoricalProse | Where-Object { $_ }) }
+    $ledgers = if ($NoHistoricalProse) { @() } else { @(@($HistoricalProse) + $cfgLedgers | Where-Object { $_ }) }
+    # Tokens of each file, once: a quick filter before the line-by-line search. Joined with
+    # a NEWLINE, not a space: the space is in the tokenizer's class and would weld the end
+    # of one line to the start of the next into a token that exists on no line.
+    $fileTokens = @{}
+    foreach ($rel in $content.Keys) { $fileTokens[$rel] = Get-Token ($content[$rel] -join "`n") }
     $findings = 0
     $inLedger = 0
     foreach ($tok in ($superseded.Keys | Sort-Object)) {
         foreach ($rel in ($content.Keys | Sort-Object)) {
             if ($exceptions.ContainsKey("${rel}:${tok}")) { continue }
+            if (-not $fileTokens[$rel].Contains($tok)) { continue }
             $script:current = $rel
             $ls = @($content[$rel] | Where-Object { $null -ne $_ })
             for ($i = 0; $i -lt $ls.Count; $i++) {
-                $norm = ($ls[$i] -replace $script:ThinClass, '')
-                if ($norm -notmatch [regex]::Escape($tok)) { continue }
+                if (-not (Get-Token $ls[$i]).Contains($tok)) { continue }
                 # A line that IS part of a marker block declares the supersession; it does
                 # not repeat it unmarked.
                 if ($markerLines.ContainsKey($rel) -and $markerLines[$rel].Contains($i)) { continue }
@@ -363,6 +435,9 @@ try {
         $content.Count, $blocks, $superseded.Count
     if ($dropped.Count -gt 0) { $summary += " | {0} dropped by spread (>{1} files)" -f $dropped.Count, $MaxSpread }
     if ($inLedger -gt 0) { $summary += " | $inLedger in append-only prose (not counted)" }
+    if (Test-Path -LiteralPath $cfgPath -PathType Leaf) {
+        $summary += " | root declares {0} exception(s) and {1} ledger(s)" -f $cfgExceptions, $cfgLedgers.Count
+    }
     Say $summary
     if ($findings -gt 0) {
         Write-Output "$findings occurrence(s) of a superseded value with no mark. Propagate the marker, do not rewrite the body."
