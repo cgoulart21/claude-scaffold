@@ -29,7 +29,7 @@ The concepts: all of them. The scripts: not directly.
 | Governance, lessons, corrections, handoff | Plain Markdown - fully portable |
 | Vault schema | Fully portable |
 | `triggers.md`, the exit-code contract | Concepts port; use `cron` or a systemd timer for path 1 |
-| The three hooks | PowerShell. Logic ports, syntax does not |
+| The four hooks | PowerShell. Logic ports, syntax does not |
 | `Set-MemoryJunctions.ps1` | **Windows-specific by design** - it uses NTFS reparse points |
 
 For the memory store on Unix, the equivalent is a symlink per silo. The safety argument is

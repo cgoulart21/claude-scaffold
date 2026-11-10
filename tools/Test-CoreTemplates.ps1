@@ -4,9 +4,9 @@
   Structural assertions over core/. These check that the templates say what the
   scaffold claims they say - not that the prose is good, which no test can do.
 
-  Group 2 (the twelve lesson families) is deliberately absent: core/lessons/ is
-  authored in a session of its own. The numbering keeps its slot so the group
-  lands where it belongs rather than at the end.
+  Group 2 counts the lesson families in core/lessons/. The count is pinned on
+  purpose: a family is added deliberately, and the test is bumped in the same
+  change, never to make a run green.
 #>
 [CmdletBinding()]
 param(
@@ -66,8 +66,8 @@ Assert-True 'lessons file exists' ($lessons.Length -gt 0)
 $families = @([regex]::Matches($lessons, '(?m)^##\s+\d+\.\s'))
 # Eleven since 2026-09-20: family 11 (the summarising layer) came in with occurrences from a
 # second practice, which is the FAQ's bar for a contribution. Bump this on purpose, never to
-# make a run green. Twelve since 2026-10-14: family 12 (a remembered number is a hypothesis),
-# five occurrences across four projects.
+# make a run green. Twelve since 2026-10-14: family 12 (a remembered number is a hypothesis);
+# nine occurrences across six projects as of 2026-11-09.
 Assert-True 'exactly twelve families' ($families.Count -eq 12)
 
 $applies = @([regex]::Matches($lessons, '(?m)^\*\*Apply:\*\*'))

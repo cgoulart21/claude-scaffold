@@ -45,7 +45,7 @@ were replaced by a competitor. If yes, it is method.
 | Subsystem | What it gives you |
 |---|---|
 | `governance/` | The global instruction file: eight rules in seven sections, short enough to actually be read |
-| `lessons/` | Ten cross-cutting error families, with the rule that grows them |
+| `lessons/` | Twelve cross-cutting error families, with the rule that grows them |
 | `memory/` | One physical memory folder behind per-directory junctions, plus the file schema |
 | `corrections/` | The append-only counter, and the second-occurrence promotion rule |
 | `handoff/` | `PLAN.md` and its checkpoint convention, shared across agents |

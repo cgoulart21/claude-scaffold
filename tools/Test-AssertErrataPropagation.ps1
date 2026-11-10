@@ -29,6 +29,7 @@ $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 # Built from the code point, never written literally or as an escape: see the header of
 # the gate for why this file would otherwise stop testing what it claims to test.
 $Nbsp = [string][char]0x00A0
+$EnDash = [string][char]0x2013
 
 function Invoke-Gate {
     param([string[]] $ScriptArgs)
@@ -470,6 +471,76 @@ try {
     $r28 = Invoke-Gate @('-Root', $c28)
     Assert-True -Name 'control: without the configuration the sibling is a finding' `
         -Condition ($r28.Exit -eq 1 -and $r28.Out -match 'notes/sibling\.md:3') -Detail $r28.Out
+
+    # The line check and the occurrence count in the marker looked for the token as a
+    # SUBSTRING of the text with every space removed, while identification used the
+    # tokenizer: two definitions of "this line contains the value". A superseded 0,25
+    # matched 0,2562, 0,256 and 10,25, and - spaces gone - the "0, 25" of a Python tuple.
+    # Decimal commas here on purpose: the tuple case only exists with them.
+    Write-Output ''
+    Write-Output 'Group 18  whole-number matching with decimal commas, and the spread guard'
+    $c24 = New-Corpus
+    Set-Page -Root $c24 -Rel 'source.md' -Lines (@(
+        '# Source', '', 'The remanence was taken as 0,25 T.', '',
+        '> **[SUPERSEDED]** the remanence is 1,17 T, not 0,25.', ''
+    ) + $Filler)
+    Set-Page -Root $c24 -Rel 'coil.md' -Lines (@(
+        '# Coil', '', 'The coil had 4350 turns.', '',
+        '> **[SUPERSEDED]** 4350 turns is now 4410.', ''
+    ) + $Filler)
+    Set-Page -Root $c24 -Rel 'p2562.md' -Lines (@('# P', '', 'The product u = 0,2562 T^2 closes the gap.', '') + $Filler)
+    Set-Page -Root $c24 -Rel 'p256.md' -Lines (@('# P', '', 'Rounded, u = 0,256 T^2.', '') + $Filler)
+    Set-Page -Root $c24 -Rel 'p1025.md' -Lines (@('# P', '', 'A ratio of 10,25 is another quantity.', '') + $Filler)
+    Set-Page -Root $c24 -Rel 'ptuple.md' -Lines (@('# P', '', 'chunks = [("input.pdf", 0, 25), ("input.pdf", 25, 50)]', '') + $Filler)
+    Set-Page -Root $c24 -Rel 'p4350.md' -Lines (@('# P', '', 'Fill factor 0,4350; a total of 14350 windings.', '') + $Filler)
+    Set-Page -Root $c24 -Rel 'sibling.md' -Lines (@(
+        '# Sibling', '', 'The remanence was estimated at 0,25 T.', '',
+        ('Historical range: 0,21' + $EnDash + '0,25 T.'), '',
+        'The coil has 4350 turns.', ''
+    ) + $Filler)
+    $r24 = Invoke-Gate @('-Root', $c24)
+    Assert-True -Name "'0,25' does not match '0,2562' (a digit after)" -Condition ($r24.Out -notmatch 'p2562\.md') -Detail $r24.Out
+    Assert-True -Name "'0,25' does not match '0,256' (a digit after)" -Condition ($r24.Out -notmatch 'p256\.md') -Detail $r24.Out
+    Assert-True -Name "'0,25' does not match '10,25' (a digit before)" -Condition ($r24.Out -notmatch 'p1025\.md') -Detail $r24.Out
+    Assert-True -Name "'0,25' does not match '0, 25' (an ordinary space is not a separator)" `
+        -Condition ($r24.Out -notmatch 'ptuple\.md') -Detail $r24.Out
+    Assert-True -Name "'4350' matches neither '0,4350' nor '14350'" -Condition ($r24.Out -notmatch 'p4350\.md') -Detail $r24.Out
+    Assert-True -Name "'0,25 T' and '0,21-0,25' (en dash) are still accused: two findings" `
+        -Condition ($r24.Exit -eq 1 -and ([regex]::Matches($r24.Out, 'sibling\.md:\d+ repeats the superseded value 0,25 ')).Count -eq 2) `
+        -Detail $r24.Out
+    Assert-True -Name "and the integer '4350' standing alone is still accused" `
+        -Condition ($r24.Out -match 'sibling\.md:\d+ repeats the superseded value 4350 ') -Detail $r24.Out
+
+    # The occurrence count in the marker used the same substring: 0,25 next to 0,2562 in
+    # one block counted twice, so the value passed as "did not change" (Group 5) - nothing
+    # identified, a clean sweep for not having looked.
+    $c25 = New-Corpus
+    Set-Page -Root $c25 -Rel 'source.md' -Lines (@(
+        '# Source', '', 'Remanence: 0,25 T.', '',
+        '> **[SUPERSEDED]** the remanence 0,25 T is now 1,17 T; the product',
+        '> u = 0,2562 T^2 stays identified.', ''
+    ) + $Filler)
+    Set-Page -Root $c25 -Rel 'sibling.md' -Lines (@('# Sibling', '', 'The remanence was estimated at 0,25 T.', '') + $Filler)
+    $r25 = Invoke-Gate @('-Root', $c25)
+    Assert-True -Name 'a longer number in the marker does not make the value look unchanged' `
+        -Condition ($r25.Exit -eq 1 -and $r25.Out -match 'sibling\.md:3 repeats the superseded value 0,25 ') -Detail $r25.Out
+
+    # GUARD for what does NOT change: the spread cut still counts the DIGIT SEQUENCE, so
+    # seven pages carrying 0,2562 drop 0,25. Counting exact tokens was measured on the
+    # originating corpora and reverted - the header says why. This case fails if someone
+    # changes the count without reading that.
+    $c26 = New-Corpus
+    Set-Page -Root $c26 -Rel 'source.md' -Lines (@(
+        '# Source', '', 'Remanence: 0,25 T.', '',
+        '> **[SUPERSEDED]** the remanence 0,25 T is now 1,17 T.', ''
+    ) + $Filler)
+    Set-Page -Root $c26 -Rel 'sibling.md' -Lines (@('# Sibling', '', 'The remanence was estimated at 0,25 T.', '') + $Filler)
+    foreach ($n in 1..7) {
+        Set-Page -Root $c26 -Rel "u$n.md" -Lines (@("# U$n", '', 'The product u = 0,2562 T^2 closes the gap.', '') + $Filler)
+    }
+    $r26 = Invoke-Gate @('-Root', $c26, '-MaxSpread', '6')
+    Assert-True -Name 'spread still counts the digit sequence: 0,2562 on seven pages drops 0,25 (guard)' `
+        -Condition ($r26.Exit -eq 0 -and $r26.Out -match '1 dropped by spread') -Detail $r26.Out
 }
 finally {
     foreach ($d in $script:Temps) { Remove-Item -LiteralPath $d -Recurse -Force -ErrorAction SilentlyContinue }

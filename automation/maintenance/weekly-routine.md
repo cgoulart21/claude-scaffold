@@ -26,7 +26,8 @@ second occurrence was in a *different* project from the first.
   both occurrences.
 
 Only report what you find. Applying a promotion is a decision, and the person whose practice
-this is makes it.
+this is makes it. If there is no candidate, write "none" explicitly: a report that omits
+the step cannot be told apart from a step that did not run.
 
 ## 2. Plan freshness (needs `core/handoff/`)
 
@@ -74,6 +75,11 @@ Run `automation/verification/Invoke-VaultLint.ps1 -VaultRoot <vault>` for the me
 half: orphans, stubs, real dangling links, the promotion queue. Then do the judgement half
 yourself, as the vault's instruction file defines it: contradictions, stale claims, missing
 pages and cross-references, archiving candidates. Report only.
+
+**An item inherited from last week's report enters this one only if you re-measured it in
+this run.** The old report is a summary, not the source: one practice listed two items as
+open for a month after they had been fixed, because each week copied the previous list
+instead of checking it (family 11). Re-measure, or label the item "not re-checked".
 
 ## 6. Report
 

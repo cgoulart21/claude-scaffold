@@ -14,6 +14,13 @@ A project's own `CLAUDE.md` / `AGENTS.md` overrides this file.
   datasheet, a measurement. An artifact validated only against references built from the
   same assumptions keeps passing for exactly as long as the shared assumption stays wrong.
 - Before non-trivial work, state **"Assumptions: 1... 2..."** and then proceed.
+- **A fact only the user has gets asked before you build on it:** what is mounted on the
+  bench, whose account or machine it is, the size of a feature described without a number.
+  Documents, names and history say what *was*. The question goes before the
+  interpretation, not at the end of the answer.
+- **Scope proportional to the question:** the bar for "enough" comes from what was asked,
+  not from your own rigour or a reviewer's. An extra review round or a deliverable bigger
+  than the request is **offered**, not done.
 - When signals contradict each other, **name the contradiction** instead of silently
   picking a side.
 - **An indirect signal is not the fact.** A loaded catalogue is not a used skill - a login

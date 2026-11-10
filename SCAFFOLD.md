@@ -112,7 +112,7 @@ Deploy in this order, because each one is referenced by the next:
 
 ## Phase 2 - `automation/` (if C)
 
-1. Copy the three hooks into `<AGENT-HOME>/hooks/` and wire them into the settings file.
+1. Copy the four hooks into `<AGENT-HOME>/hooks/` and wire them into the settings file.
    The wiring JSON is in `automation/hooks/README.md`. **Wire the PreToolUse pair for both
    shell-capable tools** - the ones named `Bash` and `PowerShell` - because a guard covering
    one of two shells is a door left open.

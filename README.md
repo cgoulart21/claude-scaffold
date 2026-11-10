@@ -63,13 +63,13 @@ installed and ignored.
 - **A governance file** of eight rules across seven sections, short enough to be read at
   the start of every session. It came out of an audit that cut thirty-eight rules to eight
   and made them *more* effective.
-- **Ten cross-cutting lesson families** - the errors that different projects learn
+- **Twelve cross-cutting lesson families** - the errors that different projects learn
   separately, each paying full price - plus the rule that grows your own.
 - **A memory system** that is one physical folder behind per-directory junctions, so a fact
   learned in one project is visible from every other.
 - **A corrections log** that promotes a lesson into a rule on its second occurrence, and
   has no stage in between, because that is where the previous design died.
-- **Three hooks**, of which the interesting one prints your lessons and gotchas into every
+- **Four hooks**, of which the interesting one prints your lessons and gotchas into every
   session instead of pointing at a file nobody opens.
 - **Maintenance that notifies and never applies**, with three trigger mechanisms and a test
   for telling which one your host can actually run.

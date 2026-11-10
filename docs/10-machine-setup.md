@@ -31,7 +31,7 @@ C:\Projects\                       one root for work, whatever you call it
 <AGENT-HOME>\                      application state, NOT version-controlled
   CLAUDE.md                        the global instruction file
   settings.json                    permissions and hook wiring
-  hooks\                           the three hooks
+  hooks\                           the four hooks
   skills\                          installed skills
   maintenance\                     scripts, the weekly routine, date markers
   projects\<per-directory>\memory  junctions into the store above

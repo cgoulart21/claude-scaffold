@@ -1,11 +1,12 @@
 # Hooks
 
-Three hooks. Two guard, one informs. The informing one is the reason this folder exists.
+Four hooks. One guards, two advise, one informs. The informing one is the reason this folder exists.
 
 | Hook | Event | Blocks? |
 |---|---|---|
 | `block-dangerous-git.ps1` | `PreToolUse` | yes - exit 2 stops the tool call |
 | `review-before-commit.ps1` | `PreToolUse` | never - advisory only |
+| `bash-backslash-warning.ps1` | `PreToolUse` | never - advisory only |
 | `session-start.ps1` | `SessionStart` | n/a - prints context |
 
 **Compaction is a session boundary, and the host treats it as one.** When a long session
@@ -71,7 +72,8 @@ tool; `SessionStart` runs when a session opens, resumes, or restarts after compa
         "matcher": "Bash",
         "hooks": [
           { "type": "command", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$USERPROFILE/.claude/hooks/block-dangerous-git.ps1\"" },
-          { "type": "command", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$USERPROFILE/.claude/hooks/review-before-commit.ps1\"" }
+          { "type": "command", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$USERPROFILE/.claude/hooks/review-before-commit.ps1\"" },
+          { "type": "command", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$USERPROFILE/.claude/hooks/bash-backslash-warning.ps1\"" }
         ]
       }
     ],

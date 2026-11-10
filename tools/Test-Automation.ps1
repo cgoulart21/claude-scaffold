@@ -151,6 +151,26 @@ Assert-True 'outside a repository: exit 0'                   ($result.Code -eq 0
 Assert-True 'outside a repository: no reminder'              ($result.Text -notmatch 'additionalContext')
 Remove-Item -LiteralPath $crlfRepo, $notRepo -Recurse -Force -ErrorAction SilentlyContinue
 
+Write-Output 'Group 2b - the backslash warning fires on rewriting transports only'
+
+$bs = [string][char]92
+$warnCases = @(
+    @{ N = 'heredoc with a backslash';        C = "python - <<'EOF'`nprint('a" + $bs + "n')`nEOF"; W = $true },
+    @{ N = 'inline python -c with a backslash'; C = "python -c `"print('a" + $bs + "n')`""; W = $true },
+    @{ N = 'cmd.exe /c with a backslash path';  C = 'cmd.exe /c C:' + $bs + 'tools' + $bs + 'run.cmd'; W = $true },
+    @{ N = 'a .bat path with a backslash';      C = 'C:' + $bs + 'tools' + $bs + 'build.bat'; W = $true },
+    @{ N = 'cmd.exe /c without a backslash';    C = 'cmd.exe /c dir'; W = $false },
+    @{ N = 'ls of a backslash path';            C = 'ls C:' + $bs + 'Projects'; W = $false },
+    @{ N = 'plain echo';                        C = 'echo hello'; W = $false }
+)
+foreach ($case in $warnCases) {
+    $result = Invoke-HookWithEvent -Relative 'hooks\bash-backslash-warning.ps1' -Json (New-Event -Command $case.C)
+    $warned = $result.Text -match 'bash-backslash'
+    Assert-True ("backslash warning " + $(if ($case.W) { 'fires' } else { 'stays quiet' }) + ": " + $case.N) (($result.Code -eq 0) -and ($warned -eq $case.W))
+}
+$result = Invoke-HookWithEvent -Relative 'hooks\bash-backslash-warning.ps1' -Json 'not json at all'
+Assert-True 'backslash warning: malformed event exits 0 silently' (($result.Code -eq 0) -and -not ($result.Text -match 'bash-backslash'))
+
 Write-Output 'Group 3 - session-start injects, warns, and can be switched off'
 
 $box = Join-Path $env:TEMP ('sess-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
@@ -231,7 +251,7 @@ finally { Remove-Item -LiteralPath $box -Recurse -Force -ErrorAction SilentlyCon
 
 Write-Output 'Group 4 - hooks ship ASCII-only and parse on 5.1'
 
-foreach ($name in @('block-dangerous-git.ps1', 'review-before-commit.ps1', 'session-start.ps1')) {
+foreach ($name in @('block-dangerous-git.ps1', 'review-before-commit.ps1', 'session-start.ps1', 'bash-backslash-warning.ps1')) {
     $path = Join-Path $AutomationRoot "hooks\$name"
     if (Test-Path -LiteralPath $path -PathType Leaf) {
         $nonAscii = @([IO.File]::ReadAllBytes($path) | Where-Object { $_ -gt 127 }).Count

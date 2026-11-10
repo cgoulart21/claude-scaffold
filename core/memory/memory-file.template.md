@@ -52,6 +52,13 @@ scalar (no wrapping quotes, no `: `, no ` #`), copied verbatim after the link in
 `MEMORY.md`. `automation/verification/Assert-MemoryIndex.ps1` fails when the two differ;
 `README.md` in this folder says why there is only one text.
 
+**Run the index gate in the same turn the memory is born or changes.** A memory that is born
+failing is otherwise found only by the next backup, sessions later and out of context. And
+check the file as written, not as you wrote it: some hosts' file-writing tool rewrites the
+frontmatter of files in a memory folder - wrapping `description` in quotes, adding fields -
+so a description you typed correctly can still fail. Writing the whole file from a script, or
+rewriting the `description` line by script afterwards, avoids it.
+
 ## Published surfaces
 
 If the memory records a page, document or export you published - an artifact, a shared

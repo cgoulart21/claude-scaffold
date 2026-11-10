@@ -489,32 +489,31 @@ measured" came from an old context block, when the latest record in the chain ha
 it. A claim about the state of another surface is checked on that surface, or on the most
 recent record, before it is repeated.
 
-## 12. A number that reaches an artifact or a person is measured or computed in the turn; a remembered one is a hypothesis
+## 12. A number that goes into an artifact, or to the user, is measured or computed in the turn; a remembered one is a hypothesis
 
-The number comes out fluent, in the right format and with the right decimal place, and it
-comes out just as fluent when it is wrong. There is no layer between you and a source here
-(that is family 11): the source was never consulted, because the sum was not done or the
-measurement was not repeated. The value comes from an earlier session, from an estimate in
-your head or from "it should be about this", and it lands somewhere another person reads as
-measured: a test comment, a document, a handoff, a commit message, a reply. Family 10 is the
-reader's side of a handoff: re-measure at the destination before acting. This is the
-writer's side: the number was never produced at all.
+The number comes out fluent, in the right format with the right decimal place, and it comes
+out just as fluent when it is wrong. There is no layer between you and a source here (that is
+family 11): the source was never consulted, because the sum was not done or the measurement
+not repeated. The value comes from an earlier session, a mental estimate, a brief someone
+else wrote, or "it should be about this much", and it lands somewhere another person reads as
+measured: a test comment, a document, a handoff, a commit message, a chat answer. Family 10
+is the reader's side of a handoff (re-measure at the destination); this is the writer's side.
 
 **Apply:** every number that goes into an artifact has, in the same turn, the command that
-produced it in view: the suite's output for a count, a three-line script for a physical
-value, the diff statistics for the size of a change. Counts are measured by running, not
-quoted. A ratio between two numbers is recomputed from the file at the moment it is
-recorded. When measuring now is not possible, the number goes in as an estimate, with the
-"approximately" and the "from memory" visible, never in the register of fact. And when
-reviewing, distrust the numbers in comments and prose first: nothing executes there, which
-is exactly why they survive.
+produced it in view: the suite output for a count, a three-line script for a physical value,
+the diff stat for the size of a change. Counts are measured by running, not quoted. A ratio
+between two numbers is recomputed from the file at the moment it is recorded. When it
+cannot be measured now, it goes in as an estimate, with the "approximately" and the "from memory" visible, never in the record of
+fact. A derived number travels with the raw reading and the model next to it, or it looks
+like a second measurement. And when reviewing, distrust numbers in comments and prose first:
+that is where nobody runs anything, which is why they survive.
 
-**Shapes it takes:** a handoff that credited a gate's test suite with one assertion more than
-it had, because the count came from the previous session - three test comments and a
-document in a firmware change, with temperatures and voltages worked out in the head and each
-one off by 10 to 30 %, none of which changed a test result, which is why they got through -
-"twelve consecutive editions since" a year that a reviewer caught by arithmetic - a ratio
-written as 5-6x that the versioned data put at 5-7x - "about two standard deviations" said in
-conversation when the script gave 3.5 standard errors. Five occurrences across four
-projects. The last one never reached a file, and the rule applies all the same: the person
-decides on a number said in conversation exactly as on a number written down.
+**Shapes it takes:** an assertion count quoted from the previous session, off by one - a
+temperature in a firmware test comment that a reviewer recomputed 15 degrees away - "twelve
+consecutive editions since 2014", which is eleven - a ratio written as 5-6x that the versioned
+data put at 5-7x - "about two standard deviations" said in conversation when the script
+gave 3.5 standard errors - a ratio measured on one part applied to a different geometry, predicting a 25 % rise that a re-measurement showed was zero - a ± and an
+n=3 that a consolidated draft by another assistant invented and the raw spreadsheet did not
+have - a brief that called a component "light, 20-60 g" when the repository recorded about
+500 g. Nine occurrences across six projects in one practice; it passes the second-project bar
+several times over.
