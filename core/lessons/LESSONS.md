@@ -57,6 +57,21 @@ newest ones only had ad-hoc commands in a build document. In none of them did th
 "break": it did exactly what it enumerated. **Absence of FAIL is not absence of risk when
 the risky item never entered the list.**
 
+**A narrow search that finds nothing is the same gate.** A script's internal placeholder
+leaked into a delivered reference list; the text search over the extracted document missed
+it because nobody searched for the placeholder, and it surfaced only in the rendered PDF.
+In another project a brief declared a component's mass "not recorded" after one search for
+one phrase, while two documents in the same repository gave the figure. Before declaring
+"there is none", search for the number, the unit, and every token a script of yours
+injected - not only the phrase you have in mind.
+
+**Opening in a viewer is not validity against the schema.** Generated documents were
+delivered because a tolerant viewer opened them; the converter's equation markup violated
+the format's schema in two places, and only a schema validator said so, three days later. A
+tolerant viewer is the worst gate there is: it accepts what the strict reader - another
+editor, the next converter - refuses. A converted document goes through the schema
+validator before it leaves, not through "it opens".
+
 **It reappears wherever the consumer differs from the checker.** A schema validator passing
 does not prove correct rendering: a glyph missing from the font became an empty box, and
 only inspecting the rendered image revealed it. Text under a component body is invisible on
@@ -317,6 +332,21 @@ a baseline "lost two keys in yesterday's merge" turned out to describe a value t
 alternates every run of a scheduled job, which had already restored them. To describe a
 trend, the file's history is the source; today's contents are not.
 
+**Another session's draft is not a fact of the project.** Three projects, one shape: a claim
+about work that never reached the branch being read, cited as the project's state. An
+uncommitted edit, later discarded, was read by a parallel session in the same tree and
+recorded in the plan as "the fix". A corrections-log line said a repair was done; no commit
+on any branch had it - it lived in a working copy on another machine - and a weekly report
+repeated the log as fact. A "final" document in a synced folder turned out to be a parallel
+lineage: the latest revision plus answers typed straight into the file, which the
+repository never recorded. The provenance that was missing each time is the **state** of
+the claim, and it has four values: committed on the branch you read, draft, unmerged
+branch, or parallel lineage outside the repository. Cite as fact only the first. A line
+that says "fixed" is a draft until a history search finds the commit; fetch before
+comparing with the remote; and a document outside the repository is a lineage, not a
+version - diff it paragraph by paragraph, and what only it has enters the repository as a
+new fact with its origin declared.
+
 ---
 
 ## 8. Two read paths over the same file disagree about encoding
@@ -377,13 +407,14 @@ carrying apostrophes, escapes or Windows paths get written to a file and execute
 reference. Inline quoting, heredocs and command substitution are not the normal path with a
 fallback - they are the wrong transport.
 
-**The three that keep recurring:**
+**The four that keep recurring:**
 
 | transport | trap | fix |
 |---|---|---|
 | Unix-style shell to git | an argument with both a slash and a colon gets rewritten as a path | disable the shell's path conversion for that command |
 | shell tool to an interpreter | valid escape sequences in a non-raw literal are **valid**, do not warn, and corrupt | raw literals, or text in a file that the script only reads |
 | passing an array to a script by file reference | a comma-separated list arrives as one element, and the script exits 0 having done nothing | invoke through the call operator with a real array, or split inside the script |
+| Unix-style shell to the Windows command interpreter | a backslash escape in a script path is rewritten (a backslash-t became a TAB), the interpreter starts interactive, reads end-of-file and **exits 0 having run nothing** | run command scripts through the native shell tool, with forward slashes or no escapes in the path |
 
 **Doubling the escape is what the transport undoes.** A corrupted control byte in a shared
 log was repaired by a byte replacement written with doubled backslashes. It ran three times
@@ -393,6 +424,17 @@ changing the hash did not repair** (family 2). What worked was building the byte
 numeric value, with no backslash in the source at all. Measure your transport before
 trusting an escape convention: the same doubling can survive one tool and collapse in
 another.
+
+**A document converter is a layer too.** The family was born from strings in shells, and
+the shape is the same when the layer is a format converter: content goes in, comes out
+different, and nothing warns. A table nested inside an inline size group was **dropped**
+in conversion; the check said 49 of 49 because it counted captions, and the target had 50.
+In a second project a conversion against a reference document squeezed the tables and
+lost the list numbering, and the way out was to open the original template, empty its
+body and refill it with its own styles, leaving the converter only the equations. After
+converting, count in the output what went in - every table, not just the captioned ones;
+list items; equations - and validate the schema (family 1). When the destination has its
+own styles, fill the model document instead of asking the converter to imitate them.
 
 **Related to family 8, and distinct from it:** there, two *readers* disagree about the same
 bytes, and the fix is choosing the API that consumes the byte order mark. Here, a *writer*
