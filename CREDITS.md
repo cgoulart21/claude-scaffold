@@ -41,6 +41,10 @@ anything copied from it:
   and dates - and what remains is the shape.
 - The **durability contract** came from this repository's own failure: it froze for months
   while looking current, and the folder split is the fix.
+- The **source-with-commit declaration** behind `Assert-MemorySources.ps1` is the
+  `source_files: {path, commit}` idea of `akitaonrails/ai-memory`: a page records the commit
+  it was checked against and is flagged stale when the file changes. The gate here is an
+  independent implementation over plain memory files and git; no code or text was taken.
 
 ## Licence
 

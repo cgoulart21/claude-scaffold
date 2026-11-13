@@ -79,6 +79,12 @@ jobs:
           .\tools\Test-AssertMemoryIndex.ps1
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
+      - name: Memory-source gate
+        shell: powershell
+        run: |
+          .\tools\Test-AssertMemorySources.ps1
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
       - name: Plan-freshness gate
         shell: powershell
         run: |

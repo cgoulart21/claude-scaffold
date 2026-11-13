@@ -59,7 +59,9 @@ If you keep the memory store, run `Assert-MemoryLinks.ps1 -MemoryRoot <store>` a
 rename's blast radius is its incoming links, and nothing else tells you one went dangling.
 Then `Assert-MemoryIndex.ps1 -MemoryRoot <store>`: a memory written in a hurry gets no index
 line, or a line whose hook is not its `description`, and the index is the one surface that
-decides relevance before a file is opened.
+decides relevance before a file is opened. And, if any memory declares a `source: <path> @
+<commit>`, `Assert-MemorySources.ps1 -MemoryRoot <store>`: it is the only one of the three
+that notices the file a memory mirrors changed after the memory was written.
 
 ## 4. Memory silos (needs `core/memory/`)
 

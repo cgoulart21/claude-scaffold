@@ -160,6 +160,27 @@ to a memory not yet written - so unresolved targets you have decided on go in `-
 each with its reason next to it in the caller. An exception that resolves again, or that
 nobody cites any more, fails the run: the list has to stay true or it lies quietly.
 
+## A memory that mirrors a file goes stale when the file moves, and nothing says so
+
+Some memories describe a document rather than a tool: "the published page mirrors
+`docs/protocol.md`, revision 1.4". The document then gets an erratum. The path still exists,
+the links resolve, the index line is verbatim - and the memory, with the page it points at,
+keeps asserting the old revision. Nothing was broken, so nothing reports it.
+
+Such a memory can declare what it was checked against, in its body, inside a code span:
+
+```
+source: C:\Projects\my-repo\docs\protocol.md @ 1a2b3c4
+```
+
+`automation/verification/Assert-MemorySources.ps1 -MemoryRoot <MEMORY-STORE>` then fails when
+that file or folder differs from what it was at that commit, uncommitted edits included. It is
+optional and per memory; a memory about a tool or a machine has no source to declare.
+
+The commit says "I checked the memory, and the surface it points at, against this version".
+Write it only after checking. A commit stamped from `HEAD` to make the gate pass is worse
+than no declaration, because it turns an unknown into a claim.
+
 ## A junction inside a repository is invisible to git
 
 Worth knowing before you put a reparse point anywhere under version control, because

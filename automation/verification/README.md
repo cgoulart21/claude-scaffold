@@ -9,13 +9,14 @@ Seven different jobs that people collapse into one or two, and should not.
 | Silent corruption | `Assert-NoControlBytes.ps1` | did a programmatic write leave a control byte in any text file? |
 | Memory renames | `Assert-MemoryLinks.ps1` | does every `[[wikilink]]` in the memory store still resolve, or is it a declared exception that is still true? |
 | Memory index drift | `Assert-MemoryIndex.ps1` | is every memory's index line still its `description`, verbatim, within the cap and safe to parse as YAML? |
+| Memory source drift | `Assert-MemorySources.ps1` | has a file that a memory mirrors changed since the commit the memory says it was checked against? |
 | Plan staleness | `Assert-PlanFreshness.ps1` | is any active `PLAN.md` older than the threshold, or based on a commit `HEAD` no longer descends from? |
 | Vault health | `Invoke-VaultLint.ps1` | orphans, stubs, real dangling links - the mechanical half of the vault's Lint operation |
 | Errata propagation | `Assert-ErrataPropagation.ps1` | does a value marked superseded in one place still appear, unmarked, somewhere else? |
 | Mirror ahead of live | `Assert-MirrorFreshness.ps1` | is any file in the backup repository newer than the live file it mirrors, so that a sync now would revert it? |
 
 None covers another, and none covers the sanitization gate in `tools/`, which looks for
-identity and location rather than credentials. Ten gates, ten enumerations - and each is
+identity and location rather than credentials. Eleven gates, eleven enumerations - and each is
 worth exactly what it enumerates. Four were promoted from a private practice after a second
 machine audited this repository and pointed out that the weekly routine asked the reader to
 do by hand what the practice had already automated; the memory-index gate followed when that
@@ -196,11 +197,12 @@ and "green" from an unknown version is the most expensive kind of green.
 .\automation\verification\Assert-NoControlBytes.ps1 -Root C:\Path\To\your-repo
 .\automation\verification\Assert-MemoryLinks.ps1 -MemoryRoot <MEMORY-STORE> -KnownDangling not-written-yet
 .\automation\verification\Assert-MemoryIndex.ps1 -MemoryRoot <MEMORY-STORE>
+.\automation\verification\Assert-MemorySources.ps1 -MemoryRoot <MEMORY-STORE>
 .\automation\verification\Assert-PlanFreshness.ps1 -Root <PROJECTS-ROOT>
 .\automation\verification\Invoke-VaultLint.ps1 -VaultRoot <VAULT-ROOT>
 ```
 
-The four that take a root are **required** to be told it: a gate that guessed where your
+The five that take a root are **required** to be told it: a gate that guessed where your
 store or your projects live would report a clean sweep of the wrong folder, and an empty
 sweep must never read as a clean one (all of them exit `2` on an empty result, not `0`).
 
@@ -216,6 +218,21 @@ character, the description within `-MaxLength` (200 by default) and a plain YAML
 judges neither the wording nor the grouping, and it never writes a line: the index stays
 authored. What it catches is the second relevance text - the hook edited in the index while
 the description stayed behind, or the memory written in a hurry with no line at all.
+
+`Assert-MemorySources` measures the one thing the other two memory gates cannot: that the
+file a memory describes **changed after the memory was written**. A link that resolves and an
+index line that is verbatim say nothing about that. A memory that mirrors a document in a
+repository declares it in its body, in a code span - `source: <path> @ <commit>` - and the
+gate asks that repository whether the path differs, in the working tree, from what it was at
+the commit. The declaration is optional and per memory; a store that uses none answers `2`,
+like the errata gate, because nothing was measured. Two decisions are worth copying if you
+write your own. First, **not measurable is not a finding**: a store shared by two machines
+names repositories that exist on only one of them, so an absent repository or an unknown
+commit prints `WARN`, is counted, and does not fail the run - while a malformed declaration,
+or a commit that does not contain the path, is a fact about the claim and does fail it.
+Second, **the commit is a statement, not a timestamp**: it says "checked against this
+version", and stamping `HEAD` without checking manufactures the green the gate exists to
+prevent. The idea is borrowed - see `CREDITS.md`.
 
 `Assert-MirrorFreshness` reads a **pairs file** - one `<live> => <mirror>` per line - and
 that file should be the one your sync script copies from, so the list of what is mirrored

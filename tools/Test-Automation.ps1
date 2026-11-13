@@ -347,7 +347,8 @@ Assert-True 'snapshot-first is explained'        ($verification -match '(?i)snap
 # opposite failure: a gate DELETED would otherwise silently reduce the coverage to nothing.
 $required = @('Invoke-Gitleaks.ps1', 'Assert-Baseline.ps1', 'Assert-NoControlBytes.ps1',
     'Assert-MemoryLinks.ps1', 'Assert-MemoryIndex.ps1', 'Assert-PlanFreshness.ps1',
-    'Invoke-VaultLint.ps1', 'Assert-ErrataPropagation.ps1', 'Assert-MirrorFreshness.ps1')
+    'Invoke-VaultLint.ps1', 'Assert-ErrataPropagation.ps1', 'Assert-MirrorFreshness.ps1',
+    'Assert-MemorySources.ps1')
 $verificationDir = Join-Path $AutomationRoot 'verification'
 $present = @(Get-ChildItem -LiteralPath $verificationDir -File -Filter '*.ps1' -ErrorAction SilentlyContinue |
     Sort-Object Name)

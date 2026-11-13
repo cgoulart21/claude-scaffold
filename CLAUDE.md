@@ -60,6 +60,7 @@ Run the full sweep before pushing anything - it is the same list CI runs, in the
 .\tools\Test-AssertNoControlBytes.ps1
 .\tools\Test-AssertMemoryLinks.ps1
 .\tools\Test-AssertMemoryIndex.ps1
+.\tools\Test-AssertMemorySources.ps1
 .\tools\Test-AssertPlanFreshness.ps1
 .\tools\Test-InvokeVaultLint.ps1
 .\tools\Test-AssertErrataPropagation.ps1
