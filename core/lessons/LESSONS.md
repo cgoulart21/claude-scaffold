@@ -84,6 +84,23 @@ migration had silently dropped an optional toolbox, and every routine that depen
 broke. Same shape as *install succeeded is not runtime works*, on a new surface. After
 changing versions of a suite, query its capabilities, not its directory.
 
+**A gate turning green on the corpus that complained is not a correct fix on the others it
+sweeps.** One shared gate reported false findings on one repository, and both fixes written
+for its tokenizer were wrong in their first version - twice in one day. Reading a dotted
+address as a single token took that repository from six findings to two and produced
+sixteen in a second one, accusing a version number on every page that cites it as history.
+Refusing an integer next to a hexadecimal letter, to stop a commit hash being read as a
+number, cleared most of the second corpus and produced six findings in a third, because the
+regex engine backed off one digit and an already-excepted hash came out one digit shorter.
+Both times the gate's own suite passed and the corpus that had complained improved; what
+showed the defect was running the gate, before and after, on all three corpora and
+comparing the findings line by line. It is this family's sentence with the fix in the
+artifact's place - *"it passed on the corpus that complained, therefore the fix is right"*
+does not hold, because a shared gate has one contract per corpus. When you change what a
+shared gate identifies, measure every corpus it sweeps, before and after, and read the
+difference in the findings rather than the count, before the first commit. A new finding
+on a corpus that had not complained is a defect of the fix until proven otherwise.
+
 ---
 
 ## 2. A check that did not run and a check that failed are opposite facts
