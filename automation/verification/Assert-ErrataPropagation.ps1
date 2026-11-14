@@ -203,7 +203,21 @@ try {
     $markerRe = [regex] $MarkerPattern
     # A distinctive numeric token: digits with a separator, tolerating a thin thousands
     # space. Built by concatenation for the same reason the class above is.
-    $tokenRe = [regex] ('\d[\d' + $script:ThinSpaces + ' ]*[.,]\d+|\d[\d' + $script:ThinSpaces + ']{2,}\d')
+    #
+    # A DOTTED SEQUENCE IS NOT A MEASURED VALUE. The first alternative matches three or more
+    # numeric groups separated by dots, and Get-TokenList drops it when it is an IDENTIFIER -
+    # an IP address, a version - and keeps it WHOLE when it is a number written with dots as
+    # thousands separators (1.234.567,89). Without it an address such as 192.168.15.37 came
+    # out as the decimals 192.168 and 15.37; one erratum about a DNS server then declared
+    # 192.168 superseded, and the gate accused every local network address in the corpus -
+    # six findings, none true, all well formed. Keeping the address or the version as ONE
+    # token was measured first and reverted: it cleared that corpus and produced sixteen
+    # findings in another, accusing version 5.1.1 on every page that cites it as history.
+    # A version that was replaced is not a measurement that was refuted, and the spread cut
+    # that used to absorb "5.1" does not absorb "5.1.1".
+    $tokenRe = [regex] ('\d+(?:\.\d+){2,}(?:,\d+)?|\d[\d' + $script:ThinSpaces + ' ]*[.,]\d+|\d[\d' + $script:ThinSpaces + ']{2,}\d')
+    $dottedRe = [regex] '^\d+(?:\.\d+){2,}'
+    $thousandsRe = [regex] '^\d{1,3}(?:\.\d{3}){2,}(?:,\d+)?$'
 
     $content = @{}
     foreach ($f in $files) {
@@ -231,6 +245,7 @@ try {
         $out = New-Object 'System.Collections.Generic.List[string]'
         foreach ($m in $tokenRe.Matches($Text)) {
             $t = ($m.Value -replace $script:ThinClass, '')
+            if ($dottedRe.IsMatch($t) -and -not $thousandsRe.IsMatch($t)) { continue }
             if ($t.Length -lt $MinTokenLength) { continue }
             if ($t -match '^(19|20)\d{2}$') { continue }
             $out.Add($t)

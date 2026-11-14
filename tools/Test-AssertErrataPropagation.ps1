@@ -541,6 +541,49 @@ try {
     $r26 = Invoke-Gate @('-Root', $c26, '-MaxSpread', '6')
     Assert-True -Name 'spread still counts the digit sequence: 0,2562 on seven pages drops 0,25 (guard)' `
         -Condition ($r26.Exit -eq 0 -and $r26.Out -match '1 dropped by spread') -Detail $r26.Out
+
+    # ---------------- Group 19: identifiers are not measurements ----------------
+    # One erratum about a DNS server made the tokenizer read an address as two decimals,
+    # declare its first half superseded and accuse every local network address in the
+    # corpus: six findings, none true. The same corpus carries a value that really was
+    # superseded and a number with dots as thousands separators, because without them the
+    # case would pass for the gate not having looked - and the fix must not cost the
+    # coverage of a large number written with two dots.
+    Write-Output ''
+    Write-Output 'Group 19  an address or a version is not a measured value; dotted thousands are'
+    $c27 = New-Corpus
+    Set-Page -Root $c27 -Rel 'dns.md' -Lines (@(
+        '# DNS', '', 'The gateway 192.168.15.1 hands out 94.140.14.15 on the 192.168.15.0 network.', '',
+        '> **ERRATA 2026-10-24:** the gateway does not hand out 94.140.14.15; the correct',
+        '> secondary server is 94.140.15.15.', ''
+    ) + $Filler)
+    Set-Page -Root $c27 -Rel 'sibling-ip.md' -Lines (@('# Sibling', '', 'The page lives at http://192.168.4.1 and the old server was 94.140.14.15.', '') + $Filler)
+    Set-Page -Root $c27 -Rel 'firmware.md' -Lines (@(
+        '# Firmware', '', 'Firmware in the field: 5.1.1.', '',
+        '> **[SUPERSEDED 2026-08-23]** firmware 5.1.1 gave way to 5.2.0.', ''
+    ) + $Filler)
+    Set-Page -Root $c27 -Rel 'sibling-version.md' -Lines (@('# Sibling', '', 'The node has run firmware 5.1.1 since June.', '') + $Filler)
+    Set-Page -Root $c27 -Rel 'cost.md' -Lines (@(
+        '# Cost', '', 'Total cost: 1.234.567,89.', '',
+        '> **[SUPERSEDED 2026-09-01]** the cost is 1.200.000,00, not 1.234.567,89.', ''
+    ) + $Filler)
+    Set-Page -Root $c27 -Rel 'sibling-thousands.md' -Lines (@('# Sibling', '', 'The budget closed at 1.234.567,89.', '') + $Filler)
+    Set-Page -Root $c27 -Rel 'source.md' -Lines (@(
+        '# Source', '', 'The measured step was 7.68 units.', '',
+        '> **[SUPERSEDED 2026-09-02]** the step is 7.55 units, not 7.68.', ''
+    ) + $Filler)
+    Set-Page -Root $c27 -Rel 'sibling-value.md' -Lines (@('# Sibling', '', 'Sizing assumes a step of 7.68 units.', '') + $Filler)
+    $r27 = Invoke-Gate @('-Root', $c27)
+    Assert-True -Name 'the corpus was MEASURED: the truly superseded value fails (exit 1)' `
+        -Condition ($r27.Exit -eq 1 -and $r27.Out -match 'sibling-value\.md:3 repeats the superseded value 7\.68 ') -Detail $r27.Out
+    Assert-True -Name 'an IP address repeated on another page is not a finding' `
+        -Condition ($r27.Out -notmatch 'sibling-ip\.md') -Detail $r27.Out
+    Assert-True -Name 'no fragment of an address becomes a superseded value' `
+        -Condition ($r27.Out -notmatch 'superseded value (192\.168|15\.1|14\.15|15\.15|94\.140)') -Detail $r27.Out
+    Assert-True -Name 'a replaced version is not a refuted measurement: the page citing 5.1.1 is clean' `
+        -Condition ($r27.Out -notmatch 'sibling-version\.md' -and $r27.Out -notmatch 'superseded value 5\.1') -Detail $r27.Out
+    Assert-True -Name 'a number with dots as thousands separators is still accused, and WHOLE' `
+        -Condition ($r27.Out -match 'sibling-thousands\.md:3 repeats the superseded value 1\.234\.567,89 ') -Detail $r27.Out
 }
 finally {
     foreach ($d in $script:Temps) { Remove-Item -LiteralPath $d -Recurse -Force -ErrorAction SilentlyContinue }
