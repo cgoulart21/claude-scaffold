@@ -215,7 +215,20 @@ try {
     # findings in another, accusing version 5.1.1 on every page that cites it as history.
     # A version that was replaced is not a measurement that was refuted, and the spread cut
     # that used to absorb "5.1" does not absorb "5.1.1".
-    $tokenRe = [regex] ('\d+(?:\.\d+){2,}(?:,\d+)?|\d[\d' + $script:ThinSpaces + ' ]*[.,]\d+|\d[\d' + $script:ThinSpaces + ']{2,}\d')
+    #
+    # A COMMIT HASH IS NOT A NUMBER. The bare integer (third alternative) does not match when
+    # it touches a LOWERCASE hexadecimal letter, before or after: c534119 came out as the
+    # integer 534119, a note citing the commit inside a marker declared it superseded, and
+    # one corpus collected ten findings on four pages that merely cite the same commit. The
+    # digit is in the lookbehind so the engine cannot restart inside the hash (34119), and in
+    # the lookahead so it cannot BACK OFF one digit and accept the rest: without that,
+    # 64350e3 - which used to come out as 64350 and had a declared exception - came out as
+    # 6435 and produced six new findings in another corpus, caught by measuring all three
+    # before committing. Lowercase only, on purpose: git prints hashes in lowercase, and a
+    # unit glued to a number is usually uppercase (4350A, 1000F) - those still count.
+    # LIMIT: an all-digit hash (0003888) is indistinguishable from an integer and still
+    # needs a declared exception.
+    $tokenRe = [regex] ('\d+(?:\.\d+){2,}(?:,\d+)?|\d[\d' + $script:ThinSpaces + ' ]*[.,]\d+|(?<![\da-f])\d[\d' + $script:ThinSpaces + ']{2,}\d(?![\da-f])')
     $dottedRe = [regex] '^\d+(?:\.\d+){2,}'
     $thousandsRe = [regex] '^\d{1,3}(?:\.\d{3}){2,}(?:,\d+)?$'
 

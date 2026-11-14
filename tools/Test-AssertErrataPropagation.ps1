@@ -573,6 +573,16 @@ try {
         '> **[SUPERSEDED 2026-09-02]** the step is 7.55 units, not 7.68.', ''
     ) + $Filler)
     Set-Page -Root $c27 -Rel 'sibling-value.md' -Lines (@('# Sibling', '', 'Sizing assumes a step of 7.68 units.', '') + $Filler)
+    # Commit hashes: c534119 came out as the integer 534119, 9185dd6 as 9185, and - once the
+    # engine was stopped from matching next to a hex letter - 64350e3 as 6435 by backing off
+    # one digit. An UPPERCASE unit glued to the number (4350A) must keep counting.
+    Set-Page -Root $c27 -Rel 'commit.md' -Lines (@(
+        '# Commit', '', 'Commits c534119, 9185dd6 and 64350e3 closed the item; the current was 4350A.', '',
+        '> **[SUPERSEDED 2026-10-19]** the messages of c534119, 9185dd6 and 64350e3 record it:',
+        '> the current is 4410A, not 4350A.', ''
+    ) + $Filler)
+    Set-Page -Root $c27 -Rel 'sibling-commit.md' -Lines (@('# Sibling', '', 'See c534119, 9185dd6 and 64350e3 in the history.', '') + $Filler)
+    Set-Page -Root $c27 -Rel 'sibling-current.md' -Lines (@('# Sibling', '', 'The test ran 4350A on the bus.', '') + $Filler)
     $r27 = Invoke-Gate @('-Root', $c27)
     Assert-True -Name 'the corpus was MEASURED: the truly superseded value fails (exit 1)' `
         -Condition ($r27.Exit -eq 1 -and $r27.Out -match 'sibling-value\.md:3 repeats the superseded value 7\.68 ') -Detail $r27.Out
@@ -582,6 +592,10 @@ try {
         -Condition ($r27.Out -notmatch 'superseded value (192\.168|15\.1|14\.15|15\.15|94\.140)') -Detail $r27.Out
     Assert-True -Name 'a replaced version is not a refuted measurement: the page citing 5.1.1 is clean' `
         -Condition ($r27.Out -notmatch 'sibling-version\.md' -and $r27.Out -notmatch 'superseded value 5\.1') -Detail $r27.Out
+    Assert-True -Name 'a commit hash cited on another page is not a finding (c534119, 9185dd6, 64350e3)' `
+        -Condition ($r27.Out -notmatch 'sibling-commit\.md' -and $r27.Out -notmatch 'superseded value (534119|34119|9185|64350|6435) ') -Detail $r27.Out
+    Assert-True -Name 'an integer with an UPPERCASE unit glued to it (4350A) is still accused' `
+        -Condition ($r27.Out -match 'sibling-current\.md:3 repeats the superseded value 4350 ') -Detail $r27.Out
     Assert-True -Name 'a number with dots as thousands separators is still accused, and WHOLE' `
         -Condition ($r27.Out -match 'sibling-thousands\.md:3 repeats the superseded value 1\.234\.567,89 ') -Detail $r27.Out
 }

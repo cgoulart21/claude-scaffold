@@ -88,7 +88,10 @@ try {
     }
 
     $tick = [string][char]96
-    $spanRe = [regex]($tick + '\s*(source:[^' + $tick + [string][char]10 + ']{3,400})' + $tick)
+    # 'source:' sits right against the opening tick, with no whitespace allowed: with '\s*'
+    # there, the PROSE BETWEEN two code spans matched from the tick that CLOSES the first to
+    # the one that OPENS the second, and was read as a declaration.
+    $spanRe = [regex]($tick + '(source:[^' + $tick + [string][char]10 + ']{3,400})' + $tick)
     $declRe = [regex]'^source:\s*(?<p>.+?)\s+@\s*(?<c>[0-9a-fA-F]{7,64})$'
     $hasGit = $null -ne (Get-Command git -ErrorAction SilentlyContinue)
 

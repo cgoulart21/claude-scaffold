@@ -158,6 +158,12 @@ try {
     $unknown = Decl $spaced '0123456789abcdef0123456789abcdef01234567'
     $r = Invoke-Gate @('-MemoryRoot', (New-Store @((Decl $spaced $shaS), $unknown)))
     Assert-True 'a commit unknown to the clone does not fail the run, and warns' ($r.Exit -eq 0 -and $r.Out -match 'unknown to this clone' -and $r.Out -match '1 not measurable') $r.Out
+    # Prose BETWEEN two code spans is not a span: the tick that closes one and the tick that
+    # opens the next do not delimit a declaration. Read as one, this line would be a
+    # malformed declaration and fail the run.
+    $between = '- see ' + (Span 'a') + " source: $spaced @ abc " + (Span 'b')
+    $r = Invoke-Gate @('-MemoryRoot', (New-Store @((Decl $spaced $shaS), $between)))
+    Assert-True 'prose between two code spans is not read as a declaration' ($r.Exit -eq 0 -and $r.Out -match '1 source declaration\(s\): 1 current') $r.Out
 
     Write-Output ''
     Write-Output 'Group 5 - state 2: could not verify (never 0, never 1)'
